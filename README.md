@@ -1,4 +1,4 @@
-# Arduino-Jtagger
+# Arduino Jtagger Driver for Low Level Purposes
 
 ## Brief
 Simple low level JTAG driver implemented on the Arduino platform.
