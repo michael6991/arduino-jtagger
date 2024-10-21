@@ -1655,6 +1655,7 @@ void loop() {
 			break;		
 	}
 
+	// This is custom for ISC max10 instruction set, thus can be removed for other projects
 	// Disable ISC
 	intToBinArray(ir_in, ISC_DISABLE, ir_len);
 	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
