@@ -14,17 +14,17 @@
 #include "max10_ir.h"
 
 
-/* 
-comment out this line if you don't wish to see debug info such as
-TAP state transitions.
+/**  
+* If you don't wish to see debug info such as TAP state transitions put 0.
+* Otherwise assign 1.
 */
-// #define DEBUGTAP
+#define DEBUGTAP (0)
 
-/* 
-comment out this line if you don't wish to see debug info regarding
-user input via serial port.
+/** 
+* If you don't wish to see debug info regarding user input via serial port put 0.
+* Otherwise assign 1.
 */
-// #define DEBUGSERIAL
+#define DEBUGSERIAL (0)
 
 
 // Define JTAG pins as you wish
@@ -57,13 +57,10 @@ user input via serial port.
 						  nop \n\t \
                           " : :);  \
 }
-
 Notice, that you also need to override the digitalWrite and digitalRead
 functions with an appropriate assembly in order to reach the desired JTAG speeds.
 */
  
-
-
 
 // Global Variables
 uint32_t idcode = 0;
@@ -80,8 +77,6 @@ enum TapStates
 	SELECT_IR, CAPTURE_IR, SHIFT_IR, EXIT1_IR, PAUSE_IR, EXIT2_IR, UPDATE_IR
 };
 enum TapStates current_state;
-
-
 
 
 /**
@@ -226,7 +221,7 @@ uint32_t binArrayToInt(uint8_t * arr, int len){
  * @param str Pointer to the array of bits.
  * @return An unsigned integer that represents the the value of the array bits.
  */
-uint32_t binStringToInt(String str){
+uint32_t binStringToInt(String str) {
 
 	uint32_t integer = 0;
   	uint32_t mask = 1;
@@ -248,35 +243,41 @@ uint32_t binStringToInt(String str){
 
 
 /**
+ * @brief Clear the remaining artifacts from previous operation
+ * no matter what it was.
+ * Cleaning this buffer is sometimes esssetial for correct operration
+ * of the serial interface. (And is generaly a good practice).
+ */
+void clear_serial_rx_buf() {
+	while (Serial.available()) {Serial.read();}
+}
+
+
+/**
  * @brief Used for various tasks where a hexadecimal number needs to be received
  * from the user via the serial port.
  * @param num_bytes The amount of hexadecimal characters to receive.
  * @param message Message for the user.
  * @return uint32_t representation of the hexadecimal number from user.
  */
-uint32_t getInteger(int num_bytes, const char * message){
+uint32_t getInteger(int num_bytes, const char * message) {
     char myData[num_bytes];
 
     // first, clean the input buffer
-	while (Serial.available())
-		Serial.read();
-	
+	clear_serial_rx_buf();
 	// notify user to input a value
 	Serial.print(message);
-
-    while (Serial.available() == 0)
-    {
-		// wait for user input
-	}
+	// wait for user input
+    while (Serial.available() == 0){}
 
     byte m = Serial.readBytesUntil('\n', myData, num_bytes);
 
     myData[m] = '\0';  //insert null charcater
 
-// #ifdef DEBUGSERIAL
+#ifdef DEBUGSERIAL
 	// Serial.print("myData: ");
 	// Serial.print(myData) ;///shows: the hexadecimal string from user
-// #endif
+#endif
 
     //------------ convert string to hexadeciaml value
     uint32_t z = strtol(myData, NULL, 16);
@@ -552,15 +553,11 @@ char getCharacter(const char * message){
     char inChar[1] = {0};
 
     // first, clean the input buffer
-	while (Serial.available())
-		Serial.read();
-	
+	clear_serial_rx_buf();
 	// notify user to input a value
 	Serial.print(message);
-
     // wait for user input
-	while (Serial.available() == 0)
-    {	}
+	while (Serial.available() == 0) {}
 
     Serial.readBytesUntil('\n', inChar, 1);
 	char character = inChar[0];
@@ -580,8 +577,7 @@ char getCharacter(const char * message){
  */
 void fetchNumber(){	
 	// wait for user input
-	while (Serial.available() == 0)
-    {	}
+	while (Serial.available() == 0) {}
 
 	digits = Serial.readStringUntil('\n');
 
@@ -607,8 +603,7 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message){
 	char prefix = '0';
 	
 	// first, clean the input buffer
-	while (Serial.available())
-		Serial.read();
+	clear_serial_rx_buf();
 	// notify user to input a value
 	Serial.print(message);
 
@@ -624,8 +619,7 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message){
 	if (prefix == 'x'){
 		// cut out the digits without the prefix
 		digits = digits.substring(2);
-		
-		
+
 		// user wants the function to return the fetched number as is without storing in destination array
 		if (dest == NULL){
 			// Prepare the character array (the buffer)
@@ -657,8 +651,7 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message){
 	}
 
 	// user sent decimal format
-	else
-	{
+	else{
 		if (isDigit(prefix) && digits.length() > 0){
 			// construct a whole decimal from the string
 			char tmp[digits.length() + 1];
@@ -698,13 +691,13 @@ void reset_tap(void){
 
 
 /**
-	@brief Insert data of length dr_len to DR, and end the interaction
-	in the state end_state which can be one of the following:
-	TLR, RTI.
-	@param dr_in Pointer to the input data array. (bytes array)
-	@param dr_len Length of the register currently connected between tdi and tdo.
-	@param end_state TAP state after dr inseration.
-	@param dr_out Pointer to the output data array. (bytes array)
+*	@brief Insert data of length dr_len to DR, and end the interaction
+*	in the state end_state which can be one of the following:
+*	TLR, RTI.
+*	@param dr_in Pointer to the input data array. (bytes array)
+*	@param dr_len Length of the register currently connected between tdi and tdo.
+*	@param end_state TAP state after dr inseration.
+*	@param dr_out Pointer to the output data array. (bytes array)
 */
 void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_out){
 	/* Make sure that current state is TLR*/
@@ -744,13 +737,13 @@ void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_
 
 
 /**
-	@brief Insert data of length ir_len to IR, and end the interaction
-	in the state end_state which can be one of the following:
-	TLR, RTI, SelectDR.
-	@param ir_in Pointer to the input data array. Bytes array, where each
-	@param ir_len Length of the register currently connected between tdi and tdo.
-	@param end_state TAP state after dr inseration.
-	@param ir_out Pointer to the output data array. (bytes array)
+*	@brief Insert data of length ir_len to IR, and end the interaction
+*	in the state end_state which can be one of the following:
+*	TLR, RTI, SelectDR.
+*	@param ir_in Pointer to the input data array. Bytes array, where each
+*	@param ir_len Length of the register currently connected between tdi and tdo.
+*	@param end_state TAP state after dr inseration.
+*	@param ir_out Pointer to the output data array. (bytes array)
 */
 void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_out){
 
@@ -954,8 +947,8 @@ void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in
 
 
 /**
-	@brief Advance the TAP machine 1 state ahead according to the current state 
-	and next state of the IEEE 1149 standard.
+*	@brief Advance the TAP machine 1 state ahead according to the current state 
+*	and next state of the IEEE 1149.1 standard.
 */
 void advance_tap_state(uint8_t next_state){
 
@@ -1545,12 +1538,9 @@ void loop() {
 	char command = '0';
 	int len = 0;
 	int nBits = 0;
-
-
 	current_state = TEST_LOGIC_RESET;
 	
 	getCharacter("Insert 's' to start > ");
-
 
 	// detect chain and read idcode
 	ir_len = detect_chain();
@@ -1561,8 +1551,6 @@ void loop() {
 	uint8_t ir_out[ir_len];
 
 	reset_tap();
-
-
 
 	while (1){
 		printMenu();
@@ -1666,10 +1654,8 @@ void loop() {
 		if (command == 'z')
 			break;		
 	}
-	
-	
-	
-	// disable ISC
+
+	// Disable ISC
 	intToBinArray(ir_in, ISC_DISABLE, ir_len);
 	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 	

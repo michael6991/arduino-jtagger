@@ -62,7 +62,7 @@ class Communicator():
         while r != "":
             try:
                 r = self.s.readline()  # read a '\n' terminated line or timeout
-                r = r.decode("cp437")  # decodes utf-8 and more
+                r = r.decode("cp1252")  # decodes utf-8 and more (was cp437)
                 sys.stdout.write(r)
                 sys.stdout.flush()
                 self.s.flushInput()
