@@ -34,7 +34,8 @@
 // half clock cycle
 // #define HC delay(1);
 // or
-#define HC delayMicroseconds(100);
+#define DELAY_US (100) // delay in microseonds for a half-clock cycle (HC) to drive TCK.
+#define HC delayMicroseconds(DELAY_US);
 
 // A more precise way to delay a half clock cycle:
 /*
@@ -42,8 +43,8 @@
 { \
     __asm__ __volatile__("nop \n\t \
                           nop \n\t \
-						  nop \n\t \
-						  nop \n\t \
+                          nop \n\t \
+                          nop \n\t \
                           " : :);  \
 }
 Notice, that you also need to override the digitalWrite and digitalRead
@@ -52,9 +53,9 @@ functions with an appropriate assembly in order to reach the desired JTAG speeds
  
 enum TapState
 {
-	TEST_LOGIC_RESET, RUN_TEST_IDLE,
-	SELECT_DR, CAPTURE_DR, SHIFT_DR, EXIT1_DR, PAUSE_DR, EXIT2_DR, UPDATE_DR,
-	SELECT_IR, CAPTURE_IR, SHIFT_IR, EXIT1_IR, PAUSE_IR, EXIT2_IR, UPDATE_IR
+    TEST_LOGIC_RESET, RUN_TEST_IDLE,
+    SELECT_DR, CAPTURE_DR, SHIFT_DR, EXIT1_DR, PAUSE_DR, EXIT2_DR, UPDATE_DR,
+    SELECT_IR, CAPTURE_IR, SHIFT_IR, EXIT1_IR, PAUSE_IR, EXIT2_IR, UPDATE_IR
 };
 
 
@@ -83,6 +84,7 @@ char serialEvent(char character);
 void printArray(uint8_t * arr, uint16_t len);
 void sendDataToHost(uint8_t * buf, uint16_t chunk_size);
 void clear_serial_rx_buf();
-void printMenu();
+void print_main_menu();
+void print_welcome();
 
 #endif /* __MAIN_H__ */

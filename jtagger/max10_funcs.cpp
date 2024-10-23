@@ -15,12 +15,12 @@
  */
 uint32_t max10_read_user_code(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
-	clear_reg(dr_out, MAX_DR_LEN);
-	intToBinArray(ir_in, USERCODE, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
-	insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
-	
-	return binArrayToInt(dr_out, 32);
+    clear_reg(dr_out, MAX_DR_LEN);
+    intToBinArray(ir_in, USERCODE, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
+    
+    return binArrayToInt(dr_out, 32);
 }
 
 
@@ -36,40 +36,40 @@ uint32_t max10_read_user_code(const uint8_t ir_len, uint8_t * ir_in, uint8_t * i
 */
 void max10_read_ufm_range(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, const uint32_t start, const uint32_t num)
 {
-	if (num < 0){
-		Serial.println("\nNumber of words to read must be positive. Exiting...");
-		return;
-	}
-	Serial.println("\nReading flash in address iteration fashion");
-	
-	intToBinArray(ir_in, ISC_ENABLE, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    if (num < 0){
+        Serial.println("\nNumber of words to read must be positive. Exiting...");
+        return;
+    }
+    Serial.println("\nReading flash in address iteration fashion");
+    
+    intToBinArray(ir_in, ISC_ENABLE, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	delay(15); // delay between ISC_Enable and read attenpt.(may be shortened)
-	
-	for (uint32_t j=start ; j < (start + num); j += 4){
-		// shift address instruction
-		intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
-		insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
-		
-		// shift address value
-		clear_reg(dr_in, 32);
-		intToBinArray(dr_in, j, 23);
-		insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
-		
-		// shift read instruction
-		intToBinArray(ir_in, ISC_READ, ir_len);
-		insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    delay(15); // delay between ISC_Enable and read attenpt.(may be shortened)
+    
+    for (uint32_t j=start ; j < (start + num); j += 4){
+        // shift address instruction
+        intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
+        insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+        
+        // shift address value
+        clear_reg(dr_in, 32);
+        intToBinArray(dr_in, j, 23);
+        insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
+        
+        // shift read instruction
+        intToBinArray(ir_in, ISC_READ, ir_len);
+        insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-		// read data
-		clear_reg(dr_in, 32);
-		insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
+        // read data
+        clear_reg(dr_in, 32);
+        insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
 
-		// print address and corresponding data
-		Serial.print("\n0x"); Serial.print(j, HEX);
-		Serial.print(": 0x"); Serial.print(binArrayToInt(dr_out, 32), HEX);
-		Serial.flush();
-	}
+        // print address and corresponding data
+        Serial.print("\n0x"); Serial.print(j, HEX);
+        Serial.print(": 0x"); Serial.print(binArrayToInt(dr_out, 32), HEX);
+        Serial.flush();
+    }
 }
 
 
@@ -85,42 +85,42 @@ void max10_read_ufm_range(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_ou
 */
 void max10_read_ufm_range_burst(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, const uint32_t start, const uint32_t num)
 {
-	if (num < 0){
-		Serial.println("\nNumber of words to read must be positive. Exiting...");
-		return;
-	}
-	Serial.println("\nReading flash in burst fashion");
-	
-	
-	intToBinArray(ir_in, ISC_ENABLE, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    if (num < 0){
+        Serial.println("\nNumber of words to read must be positive. Exiting...");
+        return;
+    }
+    Serial.println("\nReading flash in burst fashion");
+    
+    
+    intToBinArray(ir_in, ISC_ENABLE, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	delay(15); // delay between ISC_Enable and read attenpt.(may be shortened)
+    delay(15); // delay between ISC_Enable and read attenpt.(may be shortened)
 
-	// shift address instruction
-	intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    // shift address instruction
+    intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	// shift address value
-	clear_reg(dr_in, 32);
-	intToBinArray(dr_in, start, 23);
-	insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
+    // shift address value
+    clear_reg(dr_in, 32);
+    intToBinArray(dr_in, start, 23);
+    insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
 
-	// shift read instruction
-	intToBinArray(ir_in, ISC_READ, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    // shift read instruction
+    intToBinArray(ir_in, ISC_READ, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	clear_reg(dr_in, 32);
+    clear_reg(dr_in, 32);
 
-	for (uint32_t j=start ; j < (start + num); j += 4){
-		// read data in burst fashion
-		insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
+    for (uint32_t j=start ; j < (start + num); j += 4){
+        // read data in burst fashion
+        insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
 
-		// print address and corresponding data
-		Serial.print("\n0x"); Serial.print(j, HEX);
-		Serial.print(": 0x"); Serial.print(binArrayToInt(dr_out, 32), HEX);
-		Serial.flush();
-	}
+        // print address and corresponding data
+        Serial.print("\n0x"); Serial.print(j, HEX);
+        Serial.print(": 0x"); Serial.print(binArrayToInt(dr_out, 32), HEX);
+        Serial.flush();
+    }
 }
 
 
@@ -133,26 +133,26 @@ void max10_read_ufm_range_burst(const uint8_t ir_len, uint8_t * ir_in, uint8_t *
 */
 void max10_readFlashSession(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
-	uint32_t startAddr = 0;
-	uint32_t numToRead = 0;
+    uint32_t startAddr = 0;
+    uint32_t numToRead = 0;
 
-	Serial.print("\nReading flash address range");
-	
-	while (1){
-		clear_reg(dr_in, MAX_DR_LEN);
-		clear_reg(dr_out, MAX_DR_LEN);
-		
-		reset_tap();
-		
-		startAddr = parseNumber(NULL, 16, "\nInsert start addr > ");
-		numToRead = parseNumber(NULL, 16, "\nInsert amount of words to read > ");
-		max10_read_ufm_range_burst(ir_len, ir_in, ir_out, dr_in, dr_out, startAddr, numToRead);
-			
-		if (getCharacter("\nInput 'q' to quit loop, else to continue > ") == 'q'){
-			Serial.println("Exiting...");
-			break;
-		}
-	}
+    Serial.print("\nReading flash address range");
+    
+    while (1){
+        clear_reg(dr_in, MAX_DR_LEN);
+        clear_reg(dr_out, MAX_DR_LEN);
+        
+        reset_tap();
+        
+        startAddr = parseNumber(NULL, 16, "\nInsert start addr > ");
+        numToRead = parseNumber(NULL, 16, "\nInsert amount of words to read > ");
+        max10_read_ufm_range_burst(ir_len, ir_in, ir_out, dr_in, dr_out, startAddr, numToRead);
+            
+        if (getCharacter("\nInput 'q' to quit loop, else to continue > ") == 'q'){
+            Serial.println("Exiting...");
+            break;
+        }
+    }
 }
 
 
@@ -170,41 +170,41 @@ void max10_readFlashSession(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_
  */
 void max10_erase_device(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
-	Serial.println("\nErasing device ...");
+    Serial.println("\nErasing device ...");
 
-	clear_reg(ir_in, ir_len);
-	clear_reg(dr_in, 32);
+    clear_reg(ir_in, ir_len);
+    clear_reg(dr_in, 32);
 
-	intToBinArray(ir_in, ISC_ENABLE, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    intToBinArray(ir_in, ISC_ENABLE, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	delay(1);
+    delay(1);
 
-	intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
-	
-	intToBinArray(dr_in, 0x00, 23);
-	insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
+    intToBinArray(ir_in, ISC_ADDRESS_SHIFT, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    
+    intToBinArray(dr_in, 0x00, 23);
+    insert_dr(dr_in, 23, RUN_TEST_IDLE, dr_out);
 
-	delay(1);
+    delay(1);
 
-	intToBinArray(ir_in, DSM_CLEAR, ir_len);
-	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+    intToBinArray(ir_in, DSM_CLEAR, ir_len);
+    insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 
-	delay(400);
+    delay(400);
 
-	Serial.println("\nDone");
+    Serial.println("\nDone");
 }
 
 
 void max10_print_menu()
 {
-	Serial.flush();	
-	Serial.print("\n\nMAX10 FPGA Menu:\n");
-	Serial.print("a - Read flash\n");
-	Serial.print("b - Read user code\n");
-	Serial.print("c - Erase flash\n");
-	Serial.print("z - Exit\n");
+    Serial.flush();	
+    Serial.print("\n\nMAX10 FPGA Menu:\n");
+    Serial.print("a - Read flash\n");
+    Serial.print("b - Read user code\n");
+    Serial.print("c - Erase flash\n");
+    Serial.print("z - Exit\n");
     Serial.flush();
 }
 
@@ -225,20 +225,20 @@ void max10_main(const uint8_t ir_len,
     switch (command)
     {
     case 'a':
-	    // attempt to read address range from ufm
-	    max10_readFlashSession(ir_len, ir_in, ir_out, dr_in, dr_out);
+        // attempt to read address range from ufm
+        max10_readFlashSession(ir_len, ir_in, ir_out, dr_in, dr_out);
         break;
 
-	case 'b':
+    case 'b':
         // read user code
-		Serial.print("\nUser Code: 0x"); 
-		Serial.print(max10_read_user_code(ir_len, ir_in, ir_out, dr_in, dr_out), HEX);
-		flush_ir_dr(ir_in, dr_out, ir_len, MAX_DR_LEN);
-		break;
+        Serial.print("\nUser Code: 0x"); 
+        Serial.print(max10_read_user_code(ir_len, ir_in, ir_out, dr_in, dr_out), HEX);
+        flush_ir_dr(ir_in, dr_out, ir_len, MAX_DR_LEN);
+        break;
 
     case 'c':
-    	// erase the whole flash
-		max10_erase_device(ir_len, ir_in, ir_out, dr_in, dr_out);
+        // erase the whole flash
+        max10_erase_device(ir_len, ir_in, ir_out, dr_in, dr_out);
         break;
 
     case 'z':
