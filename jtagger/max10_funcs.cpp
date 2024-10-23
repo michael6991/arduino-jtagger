@@ -2,7 +2,7 @@
 /* ------------------- Custom functions for MAX10 FPGA project ----------------------------*/
 /* --------------------------------------------------------------------------------------- */
 
-#include "main.h"
+#include "jtagger.h"
 #include "max10_ir.h"
 
 /**
@@ -13,10 +13,9 @@
  * @param dr_out dr_out
  * @return 32 bit integer that represents the user code.
  */
-uint32_t max10_read_user_code(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
+uint32_t max10_read_user_code(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
 	clear_reg(dr_out, MAX_DR_LEN);
-
 	intToBinArray(ir_in, USERCODE, ir_len);
 	insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
 	insert_dr(dr_in, 32, RUN_TEST_IDLE, dr_out);
@@ -35,7 +34,7 @@ uint32_t max10_read_user_code(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in
  * @param start Address from which to start the flash reading.
  * @param num Amount of 32 bit words to read, starting from the start address.
 */
-void max10_read_ufm_range(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, uint32_t const start, uint32_t const num)
+void max10_read_ufm_range(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, const uint32_t start, const uint32_t num)
 {
 	if (num < 0){
 		Serial.println("\nNumber of words to read must be positive. Exiting...");
@@ -84,7 +83,7 @@ void max10_read_ufm_range(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, ui
  * @param start Address from which to start the flash reading.
  * @param num Amount of 32 bit words to read, starting from the start address.
 */
-void max10_read_ufm_range_burst(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, uint32_t const start, uint32_t const num)
+void max10_read_ufm_range_burst(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out, const uint32_t start, const uint32_t num)
 {
 	if (num < 0){
 		Serial.println("\nNumber of words to read must be positive. Exiting...");
@@ -132,7 +131,7 @@ void max10_read_ufm_range_burst(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_
  * @param dr_in Pointer to the input data array. (bytes array)
  * @param dr_out Pointer to the output data array. (bytes array)
 */
-void max10_readFlashSession(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
+void max10_readFlashSession(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
 	uint32_t startAddr = 0;
 	uint32_t numToRead = 0;
@@ -147,7 +146,7 @@ void max10_readFlashSession(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, 
 		
 		startAddr = parseNumber(NULL, 16, "\nInsert start addr > ");
 		numToRead = parseNumber(NULL, 16, "\nInsert amount of words to read > ");
-		read_ufm_range_burst(ir_in, ir_out, dr_in, dr_out, startAddr, numToRead);
+		max10_read_ufm_range_burst(ir_len, ir_in, ir_out, dr_in, dr_out, startAddr, numToRead);
 			
 		if (getCharacter("\nInput 'q' to quit loop, else to continue > ") == 'q'){
 			Serial.println("Exiting...");
@@ -169,7 +168,7 @@ void max10_readFlashSession(uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, 
  * @param ir_in Pointer to ir_in register.
  * @param ir_out Pointer to ir_out register.
  */
-void max10_erase_device(uint8_t * ir_in, uint8_t * ir_out)
+void max10_erase_device(const uint8_t ir_len, uint8_t * ir_in, uint8_t * ir_out, uint8_t * dr_in, uint8_t * dr_out)
 {
 	Serial.println("\nErasing device ...");
 
@@ -221,25 +220,25 @@ void max10_main(const uint8_t ir_len,
                 uint8_t * dr_out)
 {
     max10_print_menu();
-    command = getCharacter("\nmax10 > ");
+    char command = getCharacter("\nmax10 > ");
 
     switch (command)
     {
     case 'a':
 	    // attempt to read address range from ufm
-	    max10_readFlashSession(ir_in, ir_out, dr_in, dr_out);
+	    max10_readFlashSession(ir_len, ir_in, ir_out, dr_in, dr_out);
         break;
 
 	case 'b':
         // read user code
 		Serial.print("\nUser Code: 0x"); 
-		Serial.print(max10_read_user_code(ir_in, ir_out, dr_in, dr_out), HEX);
+		Serial.print(max10_read_user_code(ir_len, ir_in, ir_out, dr_in, dr_out), HEX);
 		flush_ir_dr(ir_in, dr_out, ir_len, MAX_DR_LEN);
 		break;
 
     case 'c':
     	// erase the whole flash
-		max10_erase_device(ir_in, ir_out);
+		max10_erase_device(ir_len, ir_in, ir_out, dr_in, dr_out);
         break;
 
     case 'z':
@@ -251,4 +250,3 @@ void max10_main(const uint8_t ir_len,
         break;
     }
 }
-

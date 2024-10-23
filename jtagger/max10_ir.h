@@ -3,6 +3,8 @@
  * @brief IR instructions of Intel's implementation of MAX10 FPGA
  *
  */ 
+#ifndef __MAX10_IR__H__
+#define __MAX10_IR__H__
 
 #define PULSE_NCONFIG       0x1
 #define PRELOAD_SAMPLE      0x5
@@ -54,3 +56,5 @@ Un-documented found by discovery: (ir, dr len)
 0x303 16 
 
 */
+
+#endif /* __MAX10_IR_H__ */

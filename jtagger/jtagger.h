@@ -3,7 +3,6 @@
 
 #include "Arduino.h"
 
-
 /**  
 * If you don't wish to see debug info such as TAP state transitions put 0.
 * Otherwise assign 1.
@@ -63,6 +62,7 @@ uint8_t detect_chain();
 int chr2hex(char ch);
 String getString(const char * message);
 char getCharacter(const char * message);
+void fetchNumber(const char * message);
 uint32_t getInteger(int num_bytes, const char * message);
 uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message);
 uint32_t binStringToInt(String str);
@@ -77,6 +77,7 @@ void reset_tap(void);
 void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_out);
 void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_out);
 void clear_reg(uint8_t * reg, uint16_t len);
+void flush_ir_dr(uint8_t * ir_reg, uint8_t * dr_reg, uint16_t ir_len, uint16_t dr_len);
 void advance_tap_state(uint8_t next_state);
 char serialEvent(char character);
 void printArray(uint8_t * arr, uint16_t len);

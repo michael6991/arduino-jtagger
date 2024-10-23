@@ -17,14 +17,14 @@ import time
 INPUT_CHAR = ">"
 
 # uart propreties
-PORT = "COM4"  # or "/dev/ttyUSB0"
+PORT = "COM4"  # or "/dev/ttyUSB0" or "/dev/cu.usbmodem*some number*"
 BAUD = 115200
 TIMEOUT = 0.5  # sec
 
 
 if len(sys.argv) < 3:
     print("Usage:")
-    print("    python3 controller.py [COM4 for windows | /dev/ttyUSB0 for unix] 115200")
+    print("    python3 controller.py [COM4 for Windows | /dev/ttyUSB0 for Unix | /dev/cu.usbmodem*some number* for MacOS] 115200")
     sys.exit(0)
 
 
@@ -46,7 +46,7 @@ class Communicator():
         """
         if data == "":
             # user entered not data.
-            # happens when just pressing "ENTER" key, to pass input function
+            # happens when just pressing "ENTER" key ('\n') to pass input function
             data = " "  # instead insert a SPACE character (0x20)
         self.s.write(bytes(data, "utf-8"))
         self.s.flush()
@@ -66,8 +66,10 @@ class Communicator():
                 sys.stdout.write(r)
                 sys.stdout.flush()
                 self.s.flushInput()
+
                 if INPUT_CHAR in r:  # user input is required
                     return True
+
             except serial.SerialTimeoutException as err:
                 pass
         return None
@@ -80,9 +82,9 @@ class Communicator():
         while self.reader() is None:
             pass
         # wait for user to send a start char to Arduino
-        while input() != "s":
+        while input() != "start":
             pass
-        self.writer("s")
+        self.writer("start")
 
 
 def main():

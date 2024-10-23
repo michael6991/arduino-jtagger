@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "max10_ir.h": "c",
+        "limits": "cpp"
+    }
+}

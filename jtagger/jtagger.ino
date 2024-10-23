@@ -10,7 +10,7 @@
  */
 
 
-#include "main.h"
+#include "jtagger.h"
 #include "max10_funcs.h"
 
 
@@ -193,40 +193,6 @@ uint32_t binStringToInt(String str)
  */
 void clear_serial_rx_buf() {
 	while (Serial.available()) {Serial.read();}
-}
-
-
-/**
- * @brief Used for various tasks where a hexadecimal number needs to be received
- * from the user via the serial port.
- * @param num_bytes The amount of hexadecimal characters to receive.
- * @param message Message for the user.
- * @return uint32_t representation of the hexadecimal number from user.
- */
-uint32_t getInteger(int num_bytes, const char * message)
-{
-    char myData[num_bytes] = {0};
-
-	clear_serial_rx_buf(); // first, clean the input buffer
-	Serial.print(message); // notify user to input a value
-    while (Serial.available() == 0){} // wait for user input
-
-    byte m = Serial.readBytesUntil('\n', myData, num_bytes);
-    myData[m] = '\0';  // insert null charcater
-
-#if DEBUGSERIAL
-	Serial.print("myData: ");
-	Serial.print(myData) ; // shows: the hexadecimal string from user
-#endif
-    // convert string to hexadeciaml value
-    uint32_t z = strtol(myData, NULL, 16);
-
-#if DEBUGSERIAL
-    Serial.print("\nreceived: 0x");
-    Serial.println(z, HEX); // shows 12A3
-    Serial.flush();
-#endif
-    return z;
 }
 
 
@@ -527,6 +493,58 @@ String getString(const char * message)
 
 
 /**
+ * @brief Used for various tasks where a number needs to be received
+ * from the user via the serial port.
+ */
+void fetchNumber(const char * message)
+{
+	clear_serial_rx_buf(); // first, clean the input buffer
+	Serial.print(message); // notify user to input a value
+	while (Serial.available() == 0) {} // wait for user input
+	digits = Serial.readStringUntil('\n');
+#if DEBUGSERIAL
+	Serial.print("\ndigits: ");	Serial.print(digits);
+	Serial.print("\ndigits length = "); Serial.print(digits.length());
+	Serial.flush();
+#endif
+}
+
+
+/**
+ * @brief Used for various tasks where a hexadecimal number needs to be received
+ * from the user via the serial port.
+ * @param num_bytes The amount of hexadecimal characters to receive.
+ * @param message Message for the user.
+ * @return uint32_t representation of the hexadecimal number from user.
+ */
+uint32_t getInteger(int num_bytes, const char * message)
+{
+    char myData[num_bytes];
+
+	clear_serial_rx_buf(); // first, clean the input buffer
+	Serial.print(message); // notify user to input a value
+    while (Serial.available() == 0) {} // wait for user input
+
+    size_t m = Serial.readBytesUntil('\n', myData, num_bytes);
+    myData[m] = '\0';  // insert null charcater
+
+#if DEBUGSERIAL
+	Serial.print("myData: ");
+	Serial.print(myData) ; // shows: the hexadecimal string from user
+#endif
+    // convert string to hexadeciaml value
+    uint32_t z = strtol(myData, NULL, 16);
+
+#if DEBUGSERIAL
+    Serial.print("\nreceived: 0x");
+    Serial.println(z, HEX); // shows 12A3
+    Serial.flush();
+#endif
+    return z;
+}
+
+
+/**
  *
  * @brief Receive a number from the user, in different types of format.
  * 0x , 0b, or decimal.
@@ -540,9 +558,8 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
 {
 	char prefix = '0';
 
-	clear_serial_rx_buf(); // first, clean the input buffer
-	Serial.print(message); // notify user to input a value
-	fetchNumber(); // fetch the number from the user
+	// fetch the digits from the Serial interface
+	fetchNumber(message);
 	
 	// received hex or bin number with prefix or a decimal witout prefix
 	if (digits.length() >= 2)
@@ -1244,7 +1261,8 @@ void loop() {
 	current_state = TEST_LOGIC_RESET;
 	
 	// to begin session
-	getCharacter("Insert 's' to start > ");
+	getString("Insert 'start' to start > ");
+	Serial.print("Welcome to the Arduino JTAGger\n");
 
 	// detect chain and read idcode
 	ir_len = detect_chain();
@@ -1321,14 +1339,14 @@ void loop() {
 			
 			Serial.print("\nDR  in: ");
 			printArray(dr_in, nBits);
-			if (nBits <= 32) // print the hex value if lenght is not large enough
+			if (nBits <= 32){ // print the hex value if lenght is not large enough
 				Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_in, nBits), HEX);
-
+			}
 			Serial.print("\nDR out: ");
 			printArray(dr_out, nBits);
-			if (nBits <= 32) // print the hex value if lenght is not large enough
+			if (nBits <= 32){ // print the hex value if lenght is not large enough
 				Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_out, nBits), HEX);
-
+			}
 			break;
 
 		case 't':
