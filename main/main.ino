@@ -1,71 +1,17 @@
 /** @file main.ino
  *
  * @brief Basic Jtagger, built for simple purposes such as:
- *		detecting existance of a scan chain. read idcode, insert ir and dr,
- *		and other simple or complex implementations of custom made operations.
+ * detecting existance of a scan chain. read idcode, insert ir and dr,
+ * and other simple or complex implementations of custom made operations.
  *
- * 		Can be simply modified for your requirements.
+ * Can be simply modified for your requirements.
  *
- * @author Michael Vigdorchik, October 2019
+ * @author Michael Vigdorchik
  */
 
 
-#include "Arduino.h"
-
-
-/**  
-* If you don't wish to see debug info such as TAP state transitions put 0.
-* Otherwise assign 1.
-*/
-#define DEBUGTAP (0)
-/** 
-* If you don't wish to see debug info regarding user input via serial port put 0.
-* Otherwise assign 1.
-*/
-#define DEBUGSERIAL (0)
-
-
-// Define JTAG pins as you wish
-#define TCK 7
-#define TMS 8
-#define TDI 9
-#define TDO 10
-#define TRST 11
-
-
-#define MAX_DR_LEN 32
-#ifndef MAX_DR_LEN
-#define MAX_DR_LEN 256    // usually BSR
-#endif
-
-
-/*	Choose a half-clock cycle delay	*/
-// half clock cycle
-// #define HC delay(1);
-// or
-#define HC delayMicroseconds(100);
-
-// A more precise way to delay a half clock cycle:
-/*
-#define HC \
-{ \
-    __asm__ __volatile__("nop \n\t \
-                          nop \n\t \
-						  nop \n\t \
-						  nop \n\t \
-                          " : :);  \
-}
-Notice, that you also need to override the digitalWrite and digitalRead
-functions with an appropriate assembly in order to reach the desired JTAG speeds.
-*/
- 
-
-enum TapStates
-{
-	TEST_LOGIC_RESET, RUN_TEST_IDLE,
-	SELECT_DR, CAPTURE_DR, SHIFT_DR, EXIT1_DR, PAUSE_DR, EXIT2_DR, UPDATE_DR,
-	SELECT_IR, CAPTURE_IR, SHIFT_IR, EXIT1_IR, PAUSE_IR, EXIT2_IR, UPDATE_IR
-};
+#include "main.h"
+#include "max10_funcs.h"
 
 
 // Global Variables
@@ -74,14 +20,14 @@ uint8_t dr_out[MAX_DR_LEN] = {0};
 uint8_t dr_in[MAX_DR_LEN] = {0};
 uint8_t ir_len = 1;
 String digits = "";
-enum TapStates current_state;
+enum TapState current_state;
 
 
 /**
  * @brief Detects the the existence of a chain and checks the ir length.
  * @return An integer that represents the length of the instructions.
  */
-uint8_t detect_chain(void)
+uint8_t detect_chain()
 {
 	uint8_t id_arr[32] = { 0 };
 	uint32_t idcode = 0;
@@ -106,9 +52,9 @@ uint8_t detect_chain(void)
 	advance_tap_state(EXIT1_DR);
 
 	// LSB of IDCODe must be 1.
-	if (id_arr[0] != 1)
-	{
+	if (id_arr[0] != 1) {
 		Serial.println("\n\nBad IDCODE or not implemented, LSB = 0");
+		return 0;
 	}
 
 	// turn idcode_bits into an unsigned integer
@@ -116,7 +62,7 @@ uint8_t detect_chain(void)
 	Serial.print("\nFound IDCODE: 0x"); Serial.print(idcode, HEX);
 
 	// find ir length.
-	Serial.print("\nAttempting to find IR length of part ...");
+	Serial.print("\nAttempting to find IR length of target ...");
 	reset_tap();
 	advance_tap_state(RUN_TEST_IDLE);
 	advance_tap_state(SELECT_DR);
@@ -548,31 +494,35 @@ char getCharacter(const char * message)
 	while (Serial.available() == 0) {}  // wait for user input
 
     Serial.readBytesUntil('\n', inChar, 1);
-	char character = inChar[0];
+	char chr = inChar[0];
 
 #if DEBUGSERIAL
-    Serial.print("\nreceived: ");
-    Serial.println(inChar[0]);
+    Serial.print("\nchar: "); Serial.print(chr);
     Serial.flush();
 #endif
-    return character;
+    return chr;
 }
 
 
 /**
- * @brief Used for various tasks where a number needs to be received
- * from the user via the serial port.
+ * @brief Get string from the user via the serial port.
+ * @return String input from user.
  */
-void fetchNumber()
+String getString(const char * message)
 {
+	String str;
+	clear_serial_rx_buf(); // first, clean the input buffer
+	Serial.print(message); // notify user to input a value
 	while (Serial.available() == 0) {} // wait for user input
-	digits = Serial.readStringUntil('\n');
+	
+	str = Serial.readStringUntil('\n');
 
 #if DEBUGSERIAL
-	Serial.print("\nstring: ");	Serial.print(digits);
-	Serial.print("\nString length = "); Serial.print(digits.length());
+	Serial.print("\nstring: ");	Serial.print(str);
+	Serial.print("\nstring length = "); Serial.print(str.length());
 	Serial.flush();
 #endif
+	return str;
 }
 
 
@@ -1249,33 +1199,31 @@ void sendDataToHost(uint8_t * buf, uint16_t chunk_size)
 }
 
 
-void printMenu(){
+void print_main_menu(){
 	Serial.flush();	
-	Serial.print("\n\nMenu:");
-	Serial.print("\nAll parameters should be passed in the format {0x || 0b || decimal}");
-	Serial.print("\na - Read flash");
-	Serial.print("\nb - Detect Chain");
-	Serial.print("\nc - Read User code");
-	Serial.print("\nd - Insert dr");
-	Serial.print("\ne - Erase");
-	Serial.print("\nf - Discovery");
-	Serial.print("\ng - Detect DR length");
-	Serial.print("\ni - Insert ir");
-	Serial.print("\nr - Reset TAP");
-	Serial.print("\nz - Exit");
+	Serial.print("\n\nMain JTAGGER Menu:\n");
+	Serial.print("All parameters should be passed in the format {0x || 0b || decimal}\n");
+	Serial.print("c - Detect chain\n");
+	Serial.print("d - Discovery\n");
+	Serial.print("i - Insert IR\n");
+	Serial.print("l - Detect DR length\n");
+	Serial.print("r - Insert DR\n");
+	Serial.print("t - Reset TAP state machine\n");
+	Serial.print("m - MAX10 FPGA commands\n");
+	Serial.print("z - Exit\n");
 	Serial.flush();
 }
 
 
 void setup(){
-	/* initialize mode for jtag pins */
+	/* Initialize mode for jtag pins */
 	pinMode(TCK, OUTPUT);
 	pinMode(TMS, OUTPUT);
 	pinMode(TDI, OUTPUT);
 	pinMode(TDO, INPUT_PULLUP);
 	pinMode(TRST, OUTPUT);
 
-	/* initial pins state */
+	/* Initial pins state */
 	digitalWrite(TCK, 0);
 	digitalWrite(TMS, 1);
 	digitalWrite(TDI, 1);
@@ -1283,9 +1231,7 @@ void setup(){
 
 	/* Initialize serial communication */
 	Serial.begin(115200);
-	while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-	}
+	while (!Serial) { }
 	Serial.setTimeout(500); // set timeout for various serial R/W funcs
 	Serial.println("Ready...");
 }
@@ -1302,7 +1248,7 @@ void loop() {
 
 	// detect chain and read idcode
 	ir_len = detect_chain();
-	Serial.print("IR length: "); Serial.print(ir_len);
+	Serial.print("IR length: "); Serial.print(ir_len, DEC);
 
 	// define ir register according to ir length
 	uint8_t ir_in[ir_len];
@@ -1311,30 +1257,60 @@ void loop() {
 	reset_tap();
 
 	while (1){
-		printMenu();
+		print_main_menu();
 		command = getCharacter("\ncmd > ");
 		
 		switch (command)
 		{
-		case 'a':
-			// attempt to read address range from ufm
-			readFlashSession(ir_in, ir_out, dr_in, dr_out);
-			break;
-		
-		case 'b':
+		case 'c':
 			// detect chain and read idcode
 			ir_len = detect_chain();
 			Serial.print("IR length: "); Serial.print(ir_len);
 			break;
 
-		case 'c':
-			// read user code
-			Serial.print("\nUser Code: 0x"); 
-			Serial.print(read_user_code(ir_in, ir_out, dr_in, dr_out), HEX);
-			flush_ir_dr(ir_in, dr_out, ir_len, MAX_DR_LEN);
+		case 'd':
+			// discovery of existing IRs
+			discovery(parseNumber(NULL, 20, "Max allowed DR length > "),
+					parseNumber(NULL, 20, "Final IR > "),
+					parseNumber(NULL, 20, "Initial IR > "),
+					ir_in,
+					ir_out);
 			break;
 
-		case 'd':
+		case 'i':
+			// insert ir
+			parseNumber(ir_in, ir_len, "\nShift IR > ");
+			insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
+			
+			Serial.print("\nIR  in: ");
+			printArray(ir_in, ir_len);
+			if (ir_len <= 32) // print the hex value if lenght is not large enough
+				Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_in, ir_len), HEX);
+
+			Serial.print("\nIR out: ");
+			printArray(ir_out, ir_len);
+			if (ir_len <= 32) // print the hex value if lenght is not large enough
+				Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_out, ir_len), HEX);
+			break;
+
+		case 'l':
+			// detect current dr length
+			len = detect_dr_len(ir_in, ir_len);
+			if (len == 0){
+				Serial.println("\nDid not find the current DR length, TDO stuck at 1");
+			}
+			else{
+				Serial.print("\nDR length: ");
+				Serial.print(len);
+			}
+			break;
+
+		case 'm':
+			// entering into MAX10 FPGA command menu
+			max10_main(ir_len, ir_in, ir_out, dr_in, dr_out);
+			break;
+
+		case 'r':
 			// insert dr	
 			nBits = parseNumber(NULL, 32, "Enter amount of bits to shift > ");
 			if (nBits == 0)
@@ -1355,48 +1331,7 @@ void loop() {
 
 			break;
 
-		case 'e':
-			// erase device entirely
-			erase_device(ir_in, ir_out);
-			break;
-		
-		case 'f':
-			// discovery of IRs
-			discovery(parseNumber(NULL, 20, "Max allowed DR length > "),
-					parseNumber(NULL, 20, "Final IR > "),
-					parseNumber(NULL, 20, "Initial IR > "),
-					ir_in,ir_out);
-			break;
-		
-		case 'g':
-			// detect current dr length
-			len = detect_dr_len(ir_in, ir_len);
-			if (len == 0){
-				Serial.println("\nDid not find the current DR length, TDO stuck at 1");
-			}
-			else{
-				Serial.print("\nDR length: ");
-				Serial.print(len);
-			}
-			break;
-
-		case 'i':
-			// insert ir
-			parseNumber(ir_in, ir_len, "\nShift IR > ");
-			insert_ir(ir_in, ir_len, RUN_TEST_IDLE, ir_out);
-			
-			Serial.print("\nIR  in: ");
-			printArray(ir_in, ir_len);
-			if (ir_len <= 32) // print the hex value if lenght is not large enough
-				Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_in, ir_len), HEX);
-
-			Serial.print("\nIR out: ");
-			printArray(ir_out, ir_len);
-			if (ir_len <= 32) // print the hex value if lenght is not large enough
-				Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_out, ir_len), HEX);
-			break;
-
-		case 'r':
+		case 't':
 			// reset tap
 			reset_tap();
 			break;
