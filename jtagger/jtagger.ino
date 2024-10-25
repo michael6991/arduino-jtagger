@@ -99,7 +99,7 @@ uint8_t detect_chain()
     advance_tap_state(UPDATE_IR);
     advance_tap_state(RUN_TEST_IDLE);
 
-    Serial.println("\n\nDidn't find valid IR length\n");
+    Serial.println("\nDidn't find valid IR length");
     return 0;
 }
 
@@ -456,13 +456,14 @@ char getCharacter(const char * message)
 
     clear_serial_rx_buf(); // first, clean the input buffer
     Serial.print(message); // notify user to input a value
+    Serial.flush();
     while (Serial.available() == 0) {}  // wait for user input
 
     Serial.readBytesUntil('\n', inChar, 1);
     char chr = inChar[0];
 
 #if DEBUGSERIAL
-    Serial.print("\nchar: "); Serial.print(chr);
+    Serial.print("\nchar: "); Serial.println(chr);
     Serial.flush();
 #endif
     return chr;
@@ -478,13 +479,14 @@ String getString(const char * message)
     String str;
     clear_serial_rx_buf(); // first, clean the input buffer
     Serial.print(message); // notify user to input a value
+    Serial.flush();
     while (Serial.available() == 0) {} // wait for user input
 
     str = Serial.readStringUntil('\n');
 
 #if DEBUGSERIAL
-    Serial.print("\nstring: ");	Serial.print(str);
-    Serial.print("\nstring length = "); Serial.print(str.length());
+    Serial.print("\nstring: ");	Serial.println(str);
+    Serial.print("string length = "); Serial.println(str.length());
     Serial.flush();
 #endif
     return str;
@@ -499,11 +501,14 @@ void fetchNumber(const char * message)
 {
     clear_serial_rx_buf(); // first, clean the input buffer
     Serial.print(message); // notify user to input a value
+    Serial.flush();
     while (Serial.available() == 0) {} // wait for user input
+
     digits = Serial.readStringUntil('\n');
+
 #if DEBUGSERIAL
-    Serial.print("\ndigits: ");	Serial.print(digits);
-    Serial.print("\ndigits length = "); Serial.print(digits.length());
+    Serial.print("\ndigits: ");	Serial.println(digits);
+    Serial.print("digits length = "); Serial.println(digits.length());
     Serial.flush();
 #endif
 }
@@ -522,20 +527,21 @@ uint32_t getInteger(int num_bytes, const char * message)
 
     clear_serial_rx_buf(); // first, clean the input buffer
     Serial.print(message); // notify user to input a value
+    Serial.flush();
     while (Serial.available() == 0) {} // wait for user input
 
     size_t m = Serial.readBytesUntil('\n', myData, num_bytes);
     myData[m] = '\0';  // insert null charcater
 
 #if DEBUGSERIAL
-    Serial.print("myData: ");
-    Serial.print(myData) ; // shows: the hexadecimal string from user
+    // shows: the hexadecimal string from user
+    Serial.print("myData: "); Serial.println(myData);
 #endif
     // convert string to hexadeciaml value
     uint32_t z = strtol(myData, NULL, 16);
 
 #if DEBUGSERIAL
-    Serial.print("\nreceived: 0x");
+    Serial.print("received: 0x");
     Serial.println(z, HEX); // shows 12A3
     Serial.flush();
 #endif
@@ -545,13 +551,12 @@ uint32_t getInteger(int num_bytes, const char * message)
 
 /**
  *
- * @brief Receive a number from the user, in different types of format.
- * 0x , 0b, or decimal.
- * with an option to return the fetched number as is in a uint32 format.
- * 
+ * @brief Receive a number from the user, in different formats: 0x, 0b, or decimal.
+ * With an option to return the fetched number as is in a uint32 format.
  * @param message A message for the user.
  * @param dest Destination array. Will contain user's input value.
  * @param size Size (in bytes) of the destination array. 
+ * @return 
  */
 uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
 {
@@ -584,7 +589,6 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
             uint32_t z = strtoul(tmp, NULL, 16);
             return z;
         }
-
         hexStrToBinArray(dest, size, digits, digits.length());
     }
     // user sent binary format
@@ -598,7 +602,6 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
             uint32_t z = binStringToInt(digits);
             return z;
         }
-
         binStrToBinArray(dest, size, digits, digits.length());
     }
     // user sent decimal format
@@ -615,7 +618,6 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
             if (dest == NULL){
                 return z;
             }
-
             intToBinArray(dest, z, size);
         }
 
@@ -633,7 +635,7 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
 */
 void reset_tap(void)
 {
-    Serial.println("\nresetting tap");
+    Serial.print("\nResetting TAP");
     for (uint8_t i = 0; i < 5; ++i)
     {
         digitalWrite(TMS, 1);
@@ -816,13 +818,11 @@ uint16_t detect_dr_len(uint8_t * instruction, uint8_t ir_len)
  * Test Logic Reset (TLR) state is being reached after each instruction.
  * @param first ir value to begin with.
  * @param last Usually 2 to the power of (ir_len) - 1.
+ * @param max_dr_len Maximum data register allowed.
  * @param ir_in Pointer to ir_in register.
  * @param ir_out Pointer to ir_out register.
- * @param dr_in Pointer to dr_in register.
- * @param dr_out Pointer to dr_out register.
- * @param maxDRLen Maximum data register allowed.
 */
-void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in, uint8_t * ir_out)
+void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_in, uint8_t * ir_out)
 {
     uint32_t instruction = 0;
     int i, counter = 0;
@@ -850,7 +850,7 @@ void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in
 
         digitalWrite(TDI, 1);
 
-        for (i = 0; i < maxDRLen; i++){
+        for (i = 0; i < max_dr_len; i++){
             advance_tap_state(SHIFT_DR);
         }
 
@@ -858,7 +858,7 @@ void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in
         advance_tap_state(SHIFT_DR);
         digitalWrite(TDI, 1);
 
-        for (i = 0; i < maxDRLen; i++){
+        for (i = 0; i < max_dr_len; i++){
             counter++;
             advance_tap_state(SHIFT_DR);
 
@@ -866,7 +866,7 @@ void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in
                 break;
         }
 
-        if (counter == maxDRLen){
+        if (counter == max_dr_len){
             counter = -1; // tdo stuck at 1
         }
         Serial.print("\nDetecting DR length for IR 0x");
@@ -1217,6 +1217,7 @@ void sendDataToHost(uint8_t * buf, uint16_t chunk_size)
 
 void print_welcome()
 {
+    Serial.println();
     Serial.write(art1, sizeof(art1)); Serial.flush();
     Serial.write(art2, sizeof(art2)); Serial.flush();
     Serial.write(art3, sizeof(art3)); Serial.flush();
@@ -1228,10 +1229,14 @@ void print_welcome()
     Serial.write(art9, sizeof(art9)); Serial.flush();
 }
 
-
+/**
+ * @brief Display all available commands.
+ * Also, you can add you custom commands for a specific target.
+ * For example the MAX10 FPGA commands are included.
+ */
 void print_main_menu(){
     Serial.flush();	
-    Serial.print("\nnMain Menu:\n");
+    Serial.print("\n\nMain Menu:\n");
     Serial.print("All parameters should be passed in the format {0x || 0b || decimal}\n");
     Serial.print("c - Connect to chain\n");
     Serial.print("d - Discovery\n");
@@ -1263,32 +1268,42 @@ void setup(){
     Serial.begin(115200);
     while (!Serial) { }
     Serial.setTimeout(500); // set timeout for various serial R/W funcs
-    Serial.println("Done setup");
 }
 
 
 void loop() {
     char command = '0';
-    int len = 0;
-    int nBits = 0;
+    uint32_t dr_len = 0;
+    uint32_t nbits, first_ir, final_ir;
+    uint16_t max_dr_len;
     current_state = TEST_LOGIC_RESET;
 
     // to begin session
-    getString("Insert 'start' to start > \n");
-    // Serial.print("\nArduino Jtagger\n");
+    String start = getString("Insert 'start' > ");
+    if (start != "start"){
+        Serial.println("Invalid, reset the Arduino and try again");
+        while(1);
+    }
+    
     print_welcome();
 
     // detect chain and read idcode
     ir_len = detect_chain();
-    Serial.print("IR length: "); Serial.print(ir_len, DEC);
+    Serial.print("IR length: "); Serial.println(ir_len, DEC);
+
+    if (ir_len <= 0) {
+        Serial.println("IR length must be > 0 to perform any useful JTAG operations, retry again");
+        Serial.end();
+        while(1);
+    }
 
     // define ir register according to ir length
     uint8_t ir_in[ir_len];
     uint8_t ir_out[ir_len];
-
     reset_tap();
 
-    while (1){
+    while (1)
+    {
         print_main_menu();
         command = getCharacter("\ncmd > ");
 
@@ -1302,11 +1317,10 @@ void loop() {
 
         case 'd':
             // discovery of existing IRs
-            discovery(parseNumber(NULL, 20, "Max allowed DR length > "),
-                    parseNumber(NULL, 20, "Final IR > "),
-                    parseNumber(NULL, 20, "Initial IR > "),
-                    ir_in,
-                    ir_out);
+            first_ir = parseNumber(NULL, 20, "First IR > ");
+            final_ir = parseNumber(NULL, 20, "Final IR > ");
+            max_dr_len = parseNumber(NULL, 20, "Max allowed DR length > ");
+            discovery(first_ir, final_ir, max_dr_len, ir_in, ir_out);
             break;
 
         case 'i':
@@ -1327,13 +1341,13 @@ void loop() {
 
         case 'l':
             // detect current dr length
-            len = detect_dr_len(ir_in, ir_len);
-            if (len == 0){
-                Serial.println("\nDidn't find the current DR length, TDO stuck at 1");
+            dr_len = detect_dr_len(ir_in, ir_len);
+            if (dr_len == 0){
+                Serial.println("\nDidn't find the current DR length, TDO is stuck");
             }
             else{
                 Serial.print("\nDR length: ");
-                Serial.print(len);
+                Serial.print(dr_len);
             }
             break;
 
@@ -1344,22 +1358,22 @@ void loop() {
 
         case 'r':
             // insert dr	
-            nBits = parseNumber(NULL, 32, "Enter amount of bits to shift > ");
-            if (nBits == 0)
+            nbits = parseNumber(NULL, 32, "Enter amount of bits to shift > ");
+            if (nbits == 0)
                 break;
 
-            parseNumber(dr_in, nBits, "\nShift DR > ");
-            insert_dr(dr_in, nBits, RUN_TEST_IDLE, dr_out);
+            parseNumber(dr_in, nbits, "\nShift DR > ");
+            insert_dr(dr_in, nbits, RUN_TEST_IDLE, dr_out);
 
             Serial.print("\nDR  in: ");
-            printArray(dr_in, nBits);
-            if (nBits <= 32){ // print the hex value if lenght is not large enough
-                Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_in, nBits), HEX);
+            printArray(dr_in, nbits);
+            if (nbits <= 32){ // print the hex value if lenght is not large enough
+                Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_in, nbits), HEX);
             }
             Serial.print("\nDR out: ");
-            printArray(dr_out, nBits);
-            if (nBits <= 32){ // print the hex value if lenght is not large enough
-                Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_out, nBits), HEX);
+            printArray(dr_out, nbits);
+            if (nbits <= 32){ // print the hex value if lenght is not large enough
+                Serial.print(" | 0x"); Serial.print(binArrayToInt(dr_out, nbits), HEX);
             }
             break;
 
@@ -1370,10 +1384,11 @@ void loop() {
 
         case 'z':
             // quit main loop
-            Serial.print("\nExiting menu...");
+            Serial.print("\nExiting...");
             break;
 
         default:
+            Serial.println("Invalid Command");
             break;
         }
         if (command == 'z')

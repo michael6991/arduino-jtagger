@@ -12,7 +12,7 @@
 * If you don't wish to see debug info regarding user input via serial port put 0.
 * Otherwise assign 1.
 */
-#define DEBUGSERIAL (0)
+#define DEBUGSERIAL (1)
 
 
 // Define JTAG pins as you wish
