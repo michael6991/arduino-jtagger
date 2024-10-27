@@ -21,7 +21,7 @@ uint8_t dr_out[MAX_DR_LEN] = {0};
 uint8_t dr_in[MAX_DR_LEN] = {0};
 uint8_t ir_len = 1;
 String digits = "";
-enum TapState current_state;
+tap_state current_state;
 
 
 /**
@@ -885,13 +885,8 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
 */
 void advance_tap_state(uint8_t next_state)
 {
-#if DEBUGTAP
-    Serial.print("\ntap state: ");
-    Serial.print(current_state, HEX);
-#endif
-
-    switch ( current_state ){
-
+    switch ( current_state )
+    {
         case TEST_LOGIC_RESET:
             if (next_state == RUN_TEST_IDLE){
                 // go to run test idle
@@ -1162,7 +1157,10 @@ void advance_tap_state(uint8_t next_state)
             Serial.println("Error: incorrent TAP state !");
             break;
     }
-
+#if DEBUGTAP
+    Serial.print("\ntap state: ");
+    Serial.print(current_state, HEX);
+#endif
 }
 
 
@@ -1176,7 +1174,7 @@ char serialEvent(char character)
   while (Serial.available() == 0) {
     // get the new byte:
     inChar = (char)Serial.read();
-    // if the incoming character is a newline, 
+    // if the incoming character equals to the argument, 
     // break from while and proceed to main loop
     // do something about it:
     if (inChar == character) {
@@ -1236,8 +1234,8 @@ void print_welcome()
  */
 void print_main_menu(){
     Serial.flush();	
-    Serial.print("\n\nMain Menu:\n");
-    Serial.print("All parameters should be passed in the format {0x || 0b || decimal}\n");
+    Serial.print("\n\nMain Menu\n");
+    Serial.print("All numerical parameters should be passed in the format: {0x || 0b || decimal}\n");
     Serial.print("c - Connect to chain\n");
     Serial.print("d - Discovery\n");
     Serial.print("i - Insert IR\n");
@@ -1245,13 +1243,14 @@ void print_main_menu(){
     Serial.print("r - Insert DR\n");
     Serial.print("t - Reset TAP state machine\n");
     Serial.print("m - MAX10 FPGA commands\n");
+    Serial.print("h - Show this menu\n");
     Serial.print("z - Exit\n");
     Serial.flush();
 }
 
 
 void setup(){
-    /* Initialize mode for jtag pins */
+    /* Initialize mode for standard IEEE 1149.1 JTAG pins */
     pinMode(TCK, OUTPUT);
     pinMode(TMS, OUTPUT);
     pinMode(TDI, OUTPUT);
@@ -1291,20 +1290,22 @@ void loop() {
     ir_len = detect_chain();
     Serial.print("IR length: "); Serial.println(ir_len, DEC);
 
-    if (ir_len <= 0) {
-        Serial.println("IR length must be > 0 to perform any useful JTAG operations, retry again");
-        Serial.end();
-        while(1);
-    }
+    // TODO: uncomment
+    // if (ir_len <= 0) {
+    //     Serial.println("IR length must be > 0 to perform any useful JTAG operations, retry again");
+    //     Serial.end();
+    //     while(1);
+    // }
 
     // define ir register according to ir length
     uint8_t ir_in[ir_len];
     uint8_t ir_out[ir_len];
     reset_tap();
 
+    print_main_menu();
+
     while (1)
     {
-        print_main_menu();
         command = getCharacter("\ncmd > ");
 
         switch (command)
@@ -1380,6 +1381,10 @@ void loop() {
         case 't':
             // reset tap
             reset_tap();
+            break;
+
+        case 'h':
+            print_main_menu();
             break;
 
         case 'z':

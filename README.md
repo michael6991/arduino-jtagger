@@ -11,3 +11,8 @@ Arduino IDE 2
 ## Notice
 Cannot be used on Arduino-Uno because it has not enough SRAM for the program to run.
 Use a different platform with more than 2KBytes of SRAM. (Use: Mega, Due ...)
+
+# Future Work and Features
+* JTAG/IEEE-1149.1 detection
+* ARM SWD detection
+* UART detection
