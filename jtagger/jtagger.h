@@ -26,7 +26,7 @@
 #define MAX_DR_LEN 32
 
 #ifndef MAX_DR_LEN
-#define MAX_DR_LEN 256    // usually BSR
+#define MAX_DR_LEN 1024 // usually the BSR and might be larger than that
 #endif
 
 

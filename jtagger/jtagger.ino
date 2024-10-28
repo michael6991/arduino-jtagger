@@ -635,7 +635,7 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
 */
 void reset_tap(void)
 {
-    Serial.print("\nResetting TAP");
+    Serial.print("\nResetting TAP\n");
     for (uint8_t i = 0; i < 5; ++i)
     {
         digitalWrite(TMS, 1);
@@ -1232,10 +1232,11 @@ void print_welcome()
  * Also, you can add you custom commands for a specific target.
  * For example the MAX10 FPGA commands are included.
  */
-void print_main_menu(){
+void print_main_menu()
+{
     Serial.flush();	
-    Serial.print("\n\nMain Menu\n");
-    Serial.print("All numerical parameters should be passed in the format: {0x || 0b || decimal}\n");
+    Serial.print("\n---------\nMain Menu\n\n");
+    Serial.print("\tAll numerical parameters should be passed in the format: {0x || 0b || decimal}\n\n");
     Serial.print("c - Connect to chain\n");
     Serial.print("d - Discovery\n");
     Serial.print("i - Insert IR\n");
@@ -1249,7 +1250,14 @@ void print_main_menu(){
 }
 
 
-void setup(){
+
+// TODO: create a function that can distinguish between arm adi chain and a test chain
+// sometimes we detect both chains and as a result the ir length = ir_len_jtag_for_test + ir_len_arm_adi
+
+
+
+void setup()
+{
     /* Initialize mode for standard IEEE 1149.1 JTAG pins */
     pinMode(TCK, OUTPUT);
     pinMode(TMS, OUTPUT);
@@ -1270,7 +1278,8 @@ void setup(){
 }
 
 
-void loop() {
+void loop()
+{
     char command = '0';
     uint32_t dr_len = 0;
     uint32_t nbits, first_ir, final_ir;
@@ -1290,12 +1299,11 @@ void loop() {
     ir_len = detect_chain();
     Serial.print("IR length: "); Serial.println(ir_len, DEC);
 
-    // TODO: uncomment
-    // if (ir_len <= 0) {
-    //     Serial.println("IR length must be > 0 to perform any useful JTAG operations, retry again");
-    //     Serial.end();
-    //     while(1);
-    // }
+    if (ir_len <= 0) {
+        Serial.println("IR length must be > 0 to perform any useful JTAG operations, retry again");
+        Serial.end();
+        while(1);
+    }
 
     // define ir register according to ir length
     uint8_t ir_in[ir_len];
