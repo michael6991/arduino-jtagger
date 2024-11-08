@@ -30,7 +30,7 @@ tap_state current_state;
  */
 uint8_t detect_chain()
 {
-    uint8_t id_arr[32] = { 0 };
+    uint8_t id_arr[32] = {0};
     uint32_t idcode = 0;
     uint32_t i = 0;
     uint8_t counter = 0;
@@ -43,27 +43,27 @@ uint8_t detect_chain()
     advance_tap_state(CAPTURE_DR);
     advance_tap_state(SHIFT_DR);
     
-    // shift out the id code from the id code register
-    for (i = 0; i < 31; i++)
+    // shift out the IDCODE from the id code register
+    // assumed that the IDCODE IR is the default IR after power up.
+    // first bit to read out is the LSB of the IDCODE.
+    for (i = 0; i < 32; i++)
     {
         advance_tap_state(SHIFT_DR);
-        id_arr[i] = digitalRead(TDO);  // LSB first
+        id_arr[i] = digitalRead(TDO);
     }
-    id_arr[i] = digitalRead(TDO);
     advance_tap_state(EXIT1_DR);
 
-    // LSB of IDCODe must be 1.
+    // LSB of IDCODE must be 1.
     if (id_arr[0] != 1) {
         Serial.println("\n\nBad IDCODE or not implemented, LSB = 0");
         return 0;
     }
-
-    // turn idcode_bits into an unsigned integer
+    // turn IDCODE bits into unsigned integer
     idcode = binArrayToInt(id_arr, 32);
-    Serial.print("\nFound IDCODE: 0x"); Serial.print(idcode, HEX);
+    Serial.print("\nFound IDCODE: "); printArray(id_arr, 32); Serial.print(" (0x"); Serial.print(idcode, HEX); Serial.print(")");
 
     // find ir length.
-    Serial.print("\nAttempting to find IR length of target ...");
+    Serial.print("\nAttempting to find IR length of target ...\n");
     reset_tap();
     advance_tap_state(RUN_TEST_IDLE);
     advance_tap_state(SELECT_DR);
@@ -633,9 +633,11 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
     @brief Return to TEST LOGIC RESET state of the TAP FSM.
     Apply 5 TCK cycles accompanied with TMS logic state 1.
 */
-void reset_tap(void)
+void reset_tap()
 {
+#if PRINT_RESET_TAP
     Serial.print("\nResetting TAP\n");
+#endif
     for (uint8_t i = 0; i < 5; ++i)
     {
         digitalWrite(TMS, 1);
@@ -831,7 +833,7 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
     Serial.print("\n\nDiscovery of instructions from 0x"); Serial.print(first, HEX);
     Serial.print(" to 0x"); Serial.println(last, HEX);
 
-    for (instruction=first ; instruction <= last; instruction++){
+    for (instruction=first; instruction <= last; instruction++){
         // reset tap
         reset_tap();
         counter = 0;
@@ -869,9 +871,13 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
         if (counter == max_dr_len){
             counter = -1; // tdo stuck at 1
         }
-        Serial.print("\nDetecting DR length for IR 0x");
-        Serial.print(instruction, HEX); Serial.print(" ... ");
-        Serial.print(counter);
+
+        // TODO: why just not use detect_dr_len function ??
+
+        Serial.print("\nDetecting DR length for IR: "); printArray(ir_in, last - first + 1);
+        Serial.print("\n (0x"); Serial.print(instruction, HEX); Serial.print(")");
+        Serial.print(" ... "); Serial.print(counter, DEC);
+        Serial.flush();
     }
     reset_tap();
     Serial.println("\n\n   Done");
@@ -1250,12 +1256,6 @@ void print_main_menu()
 }
 
 
-
-// TODO: create a function that can distinguish between arm adi chain and a test chain
-// sometimes we detect both chains and as a result the ir length = ir_len_jtag_for_test + ir_len_arm_adi
-
-
-
 void setup()
 {
     /* Initialize mode for standard IEEE 1149.1 JTAG pins */
@@ -1281,6 +1281,7 @@ void setup()
 void loop()
 {
     char command = '0';
+    char buf[3];
     uint32_t dr_len = 0;
     uint32_t nbits, first_ir, final_ir;
     uint16_t max_dr_len;
@@ -1312,7 +1313,7 @@ void loop()
 
     print_main_menu();
 
-    while (1)
+    while (true)
     {
         command = getCharacter("\ncmd > ");
 
@@ -1339,12 +1340,12 @@ void loop()
 
             Serial.print("\nIR  in: ");
             printArray(ir_in, ir_len);
-            if (ir_len <= 32) // print the hex value if lenght is not large enough
+            if (ir_len <= 32) // print the hex value if length is not to large
                 Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_in, ir_len), HEX);
 
             Serial.print("\nIR out: ");
             printArray(ir_out, ir_len);
-            if (ir_len <= 32) // print the hex value if lenght is not large enough
+            if (ir_len <= 32) // print the hex value if length is not to large
                 Serial.print(" | 0x"); Serial.print(binArrayToInt(ir_out, ir_len), HEX);
             break;
 
@@ -1397,7 +1398,7 @@ void loop()
 
         case 'z':
             // quit main loop
-            Serial.print("\nExiting...");
+            Serial.print("\nExiting...\nReset Arduino to start again");
             break;
 
         default:
@@ -1405,7 +1406,7 @@ void loop()
             break;
         }
         if (command == 'z')
-            break;		
+            break;
     }
 
     reset_tap();

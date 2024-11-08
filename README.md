@@ -16,3 +16,8 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 * JTAG / IEEE-1149.1 pinout detection
 * ARM SWD pinout detection
 * UART pinout detection
+
+<!-- Additional Tasks -->
+* implement the jtagulator algorithm
+* find a way to detect multiple devices in chain
+* option to insert ir,dr to a specific device in chain

@@ -14,6 +14,11 @@
 */
 #define DEBUGSERIAL (1)
 
+/**
+ * If 1 then print each time TAP is reset
+ */
+#define PRINT_RESET_TAP (0)
+
 
 // Define JTAG pins as you wish
 #define TCK 7
@@ -74,7 +79,7 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize);
 int intToBinArray(uint8_t * arr, uint32_t n, uint16_t len);
 uint16_t detect_dr_len(uint8_t * instruction, uint8_t ir_len);
 void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t * ir_in, uint8_t * ir_out);
-void reset_tap(void);
+void reset_tap();
 void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_out);
 void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_out);
 void clear_reg(uint8_t * reg, uint16_t len);
