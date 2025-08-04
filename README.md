@@ -5,8 +5,8 @@ Simple low level JTAG driver implemented on the Arduino platform.
 Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 
 ## Requirements
-* pyserial
-* Arduino IDE that supports the DUE platform
+* pyserial3.5
+* To build and flash: Use Arduino IDE that supports the DUE platform
 
 ## Notice
 * Cannot be used on Arduino-Uno because it has not enough SRAM for the program to run.
@@ -16,7 +16,5 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 * JTAG / IEEE-1149.1 pinout detection --> Jtagulator style (or JTAGEnum)
 * ARM SWD pinout detection            --> Jtagulator style
 * UART pinout detection               --> Jtagulator style
-* Find a way to detect multiple
-  devices in chain.
-* Option to insert ir,dr to a specific
-  device in chain.
+* Find a way to detect multiple devices in chain
+* Option to insert ir,dr to a specific device in chain
