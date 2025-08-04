@@ -13,11 +13,10 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 * Use a different platform with more than 2KBytes of SRAM. (Use: Mega, Due ...)
 
 # Future Work and Features
-* JTAG / IEEE-1149.1 pinout detection
-* ARM SWD pinout detection
-* UART pinout detection
-
-<!-- Additional Tasks -->
-* implement the jtagulator algorithm
-* find a way to detect multiple devices in chain
-* option to insert ir,dr to a specific device in chain
+* JTAG / IEEE-1149.1 pinout detection --> Jtagulator style (or JTAGEnum)
+* ARM SWD pinout detection            --> Jtagulator style
+* UART pinout detection               --> Jtagulator style
+* Find a way to detect multiple
+  devices in chain.
+* Option to insert ir,dr to a specific
+  device in chain.
