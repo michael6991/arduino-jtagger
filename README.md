@@ -18,3 +18,6 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 * UART pinout detection               --> Jtagulator style
 * Find a way to detect multiple devices in chain
 * Option to insert ir,dr to a specific device in chain
+* Set verbosity options
+* Wrap print functions ?
+* Move function descriptions to header file
