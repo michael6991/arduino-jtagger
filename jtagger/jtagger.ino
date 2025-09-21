@@ -11,7 +11,7 @@
 
 
 #include "jtagger.h"
-#include "max10_funcs.h"
+#include "targets/max10_funcs.h"
 #include "art.h"
 
 
@@ -24,16 +24,13 @@ String digits = "";
 tap_state current_state;
 
 
-/**
- * @brief Detects the the existence of a chain and checks the ir length.
- * @return An integer that represents the length of the instructions.
- */
 uint8_t detect_chain()
 {
     uint8_t id_arr[32] = {0};
     uint32_t idcode = 0;
     uint32_t i = 0;
     uint8_t counter = 0;
+    int rc = OK;
 
     reset_tap();
 
@@ -54,13 +51,18 @@ uint8_t detect_chain()
     advance_tap_state(EXIT1_DR);
 
     // LSB of IDCODE must be 1.
-    if (id_arr[0] != 1) {
+    if (id_arr[0] != 1)
+    {
         Serial.println("\n\nBad IDCODE or not implemented, LSB = 0");
-        return 0;
+        return -ERR_BAD_IDCODE;
     }
     // turn IDCODE bits into unsigned integer
-    idcode = binArrayToInt(id_arr, 32);
-    Serial.print("\nFound IDCODE: "); printArray(id_arr, 32); Serial.print(" (0x"); Serial.print(idcode, HEX); Serial.print(")");
+    rc = binArrayToInt(id_arr, 32, &idcode);
+    Serial.print("\nFound IDCODE: ");
+    printArray(id_arr, 32);
+    Serial.print(" (0x");
+    Serial.print(idcode, HEX);
+    Serial.print(")");
 
     // find ir length.
     Serial.print("\nAttempting to find IR length of target ...\n");
@@ -71,13 +73,14 @@ uint8_t detect_chain()
     advance_tap_state(CAPTURE_IR);
     advance_tap_state(SHIFT_IR);
     
-    // shift in about 100 ones into TDI to clear the register
+    // shift in about MANY_ONES amount of ones into TDI to clear the register
     // from its previos content. then shift a single zero followed by
     // a bunch of ones and cout the amount of clock cycles from inserting zero
     // till we read it in TDO.
 
     digitalWrite(TDI, 1);
-    for (i = 0; i < 100; ++i){
+    for (i = 0; i < MANY_ONES; ++i) 
+    {
         advance_tap_state(SHIFT_IR);
     }
 
@@ -85,30 +88,26 @@ uint8_t detect_chain()
     advance_tap_state(SHIFT_IR);
 
     digitalWrite(TDI, 1);
-    for (i = 0; i < 100; ++i)
+    for (i = 0; i < MANY_ONES; ++i)
     {
         advance_tap_state(SHIFT_IR);
 
-        if (digitalRead(TDO) == 0){
+        if (digitalRead(TDO) == 0)
+        {
             counter++;
             return counter;
         }
         counter++;
     }
+
     advance_tap_state(EXIT1_IR);
     advance_tap_state(UPDATE_IR);
     advance_tap_state(RUN_TEST_IDLE);
 
     Serial.println("\nDidn't find valid IR length");
-    return 0;
+    return ;
 }
 
-
-/**
- * @brief Convert char into a hexadecimal number
- * @param ch Character to convert
- * @return Hexadecimal representation of the char, or -1 if out of bounds.
- */
 int chr2hex(char ch)
 {
     if (ch >= 'a' && ch <= 'f')
@@ -120,20 +119,10 @@ int chr2hex(char ch)
     if (ch >= '0' && ch <= '9')
         return ch - 0x30;
 
-    return -1;
+    return -ERR_OUT_OF_BOUNDS;
 }
 
-
-/**
- * @brief Convert array of bytes into an integer number, where every byte
- * represents a single bit. Together the array represents a binary number.
- * First element of array is the LSB. 
- * Max length of the given array is 32.
- * @param arr Pointer to the array of bits.
- * @param len Integer that represents the length of the binary array.
- * @return An integer that represents the the value of the array bits.
- */
-uint32_t binArrayToInt(uint8_t * arr, int len)
+int binArrayToInt(uint8_t* arr, int len, uint32_t* out)
 {	
     uint32_t integer = 0;
     uint32_t mask = 1;
@@ -142,7 +131,7 @@ uint32_t binArrayToInt(uint8_t * arr, int len)
         Serial.print("\nbinArrayToInt function, array size is too large");
         Serial.println("\nBad conversion.");
         Serial.flush();
-        return -1;
+        return -ERR_BAD_CONVERSION;
     }
 
     for (int i = 0; i < len; i++) {
@@ -151,20 +140,12 @@ uint32_t binArrayToInt(uint8_t * arr, int len)
         }
         mask = mask << 1;
     }
-    return integer;
+
+    *out = integer;
+    return OK;
 }
 
-
-/**
- * @brief Convert the content of a String object into an integer number,
- * where every byte (char) represents a single bit. 
- * Together the string represents a binary number.
- * First element of the string is the LSB.
- * Max length of the given string is 32.
- * @param str Pointer to the array of bits.
- * @return An unsigned integer that represents the the value of the array bits.
- */
-uint32_t binStringToInt(String str)
+int binStringToInt(String str, uint32_t* out)
 {
     uint32_t integer = 0;
     uint32_t mask = 1;
@@ -172,54 +153,43 @@ uint32_t binStringToInt(String str)
     if (str.length() > 32){
         Serial.println("\nbinStrToInt function, string length is too large");
         Serial.println("Bad conversion.");
-        return -1;
+        return -ERR_BAD_CONVERSION;
     }
 
-    for (int i = str.length() - 1; i >= 0; i--) {	
-        if (str[i] == '1') {
+    for (int i = str.length() - 1; i >= 0; i--)
+    {
+        if (str[i] == '1')
             integer |= mask;
-        }
+
         mask = mask << 1;
     }
-    return integer;
+
+    *out = integer;
+    return OK;
 }
 
-
-/**
- * @brief Clear the remaining artifacts from previous operation
- * no matter what it was.
- * Cleaning this buffer is sometimes esssetial for correct operration
- * of the serial interface. (And is generaly a good practice).
- */
 void clear_serial_rx_buf() {
-    while (Serial.available()) {Serial.read();}
+    while (Serial.available())
+    {
+        Serial.read();
+    }
 }
 
-
-/**
- * @brief Convert a binary string into a bytes array arr that will represent
- * the binary value just as string. each element (byte) in arr represents a bit.
- * First element is the LSB.
- * @param arr Pointer to the output array with the binary values.
- * @param arrSize Length of the output array in bytes.
- * @param str String that represents the binary digits.
- * (LSB is the first char of string).
- * @param strSize Length of the string object.
- * @return -1 for error
- */
-int binStrToBinArray(uint8_t * arr, int arrSize, String str ,int strSize)
+int binStrToBinArray(uint8_t* arr, int arrSize, String str ,int strSize)
 {
     int i = 0;
     int j = 0;
 
-    if (strSize > arrSize){
+    if (strSize > arrSize)
+    {
         Serial.print("\nbinStrToBinArray function,length of string is larger than destination array");
         Serial.print("\ndestination array size: "); Serial.print(arrSize);
         Serial.print("\nstring requires: "); Serial.print(strSize);
         Serial.println("\nBad Conversion");
         Serial.flush();
-        return -1;
+        return -ERR_BAD_CONVERSION;
     }
+
     clear_reg(arr, arrSize);
 
     // last digit in received string is the least significant
@@ -229,21 +199,11 @@ int binStrToBinArray(uint8_t * arr, int arrSize, String str ,int strSize)
     // fill the remaining array elements with zeros
     for (i = strSize; i < arrSize; i++)
         arr[i] = 0;
+
+    return OK;
 }
 
-
-/**
- * @brief Convert a hexadecimal string into a bytes array arr that will represent
- * the binary value of the hexadecimal array. each element (byte) in arr represents a bit.
- * First element is the LSB.
- * @param arr Pointer to the output array with the binary values.
- * @param arrSize Length of the output array in bytes.
- * @param str String that represents the hexadecimal digits.
- * (LSB is the first char of string).
- * @param strSize Length of the string object.
- * @return -1 for error
- */
-int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
+int hexStrToBinArray(uint8_t* arr, int arrSize, String str, int strSize)
 {
     int i = 0;
     int j = 0;
@@ -254,6 +214,7 @@ int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
     {
         // check how many bits left on arr that can be populated with bits from the last digit.
         vacantBits = 4 - ((strSize * 4) - arrSize);  // nibble size in bits - (str digit * nibble size) - arr size in bits
+
         // maybe the last digit can fit in the 1,2, or 3 bits of the last digit
         if (vacantBits <= 0)
         {
@@ -263,7 +224,7 @@ int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
             Serial.print("\nVacant bits: "); Serial.print(vacantBits);
             Serial.println("\nBad Conversion");
             Serial.flush();
-            return -1;
+            return -ERR_BAD_CONVERSION;
         }
 
         if (vacantBits == 3 && chr2hex(str[0]) > 7)
@@ -273,6 +234,7 @@ int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
         if (vacantBits == 1 && chr2hex(str[0]) > 1)
             Serial.print("\nWarning, last digit is to large to fit register. Expect bad conversion.");
     }
+
     clear_reg(arr, arrSize);
 
     // last digit in received string is the least significant
@@ -280,10 +242,11 @@ int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
     {
         n = chr2hex(str[i]);
 
-        if (n == -1){
+        if (n == -1)
+        {
             Serial.println("\nhexStrToHexArray function, bad digit type");
             Serial.println("Bad Conversion");
-            return -1;
+            return -ERR_BAD_CONVERSION;
         }
 
         // do this if we reached the last digit and arrSize < strSize * 4
@@ -319,23 +282,13 @@ int hexStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
         if (n & 0x08)
             arr[j + 3] = 1;
 
-        j += 4;  // update destination array index
+        j += 4; // update destination array index
     }
+
+    return OK;
 }
 
-
-/**
- * @brief Convert base 10 decimal string into a bytes array arr that will represent
- * the binary value of the decimal array. each element (byte) in arr represents a bit.
- * First element is the LSB.
- * @param arr Pointer to the output array with the binary values.
- * @param arrSize Length of the output array in bytes.
- * @param str String that represents the decimal digits.
- * (LSB is the first char of string).
- * @param strSize Length of the string object.
- * @return -1 for error
- */
-int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
+int decStrToBinArray(uint8_t* arr, int arrSize, String str, int strSize)
 {
     int i = 0;
     int j = 0;
@@ -346,6 +299,7 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
     {
         // check how many bits left on arr that can be populated with bits from the last digit.
         vacantBits = 4 - ((strSize * 4) - arrSize);  // nibble size in bits - (str digit * nibble size) - arr size in bits
+
         // maybe the last digit can fit in the 1,2, or 3 bits of the last digit
         if (vacantBits <= 0)
         {
@@ -355,7 +309,7 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
             Serial.print("\nVacant bits: "); Serial.print(vacantBits);
             Serial.println("\nBad Conversion");
             Serial.flush();
-            return -1;
+            return -ERR_BAD_CONVERSION;
         }
         if (vacantBits == 3 && chr2hex(str[0]) > 7)
             Serial.print("\nWarning, last digit is to large to fit register. Expect bad conversion.");
@@ -364,6 +318,7 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
         if (vacantBits == 1 && chr2hex(str[0]) > 1)
             Serial.print("\nWarning, last digit is to large to fit register. Expect bad conversion.");
     }
+
     clear_reg(arr, arrSize);
 
     // last digit in received string is the least significant
@@ -371,10 +326,11 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
     {
         n = chr2hex(str[i]);
 
-        if (n == -1){
+        if (n == -1)
+        {
             Serial.println("\nhexStrToHexArray function, bad digit type");
             Serial.println("Bad Conversion");
-            return -1;
+            return -ERR_BAD_CONVERSION;
         }
 
         // do this if we reached the last digit and arrSize < strSize * 4
@@ -411,24 +367,17 @@ int decStrToBinArray(uint8_t * arr, int arrSize, String str, int strSize)
 
         j += 4;  // update destination array index
     }
+
+    return OK;
 }
 
-
-/**
- * @brief Convert an integer number n into a bytes array arr that will represent
- * the binary value of n. each element (byte) in arr represent a bit.
- * First element is the LSB. Largest number is a 32 bit number.
- * @param arr Pointer to the output array with the binary values.
- * @param len Length of the output array in bytes. (max size 32)
- * @param n The integer to convert.
- */
-int intToBinArray(uint8_t * arr, uint32_t n, uint16_t len)
+int intToBinArray(uint8_t* arr, uint32_t n, uint16_t len)
 {
     if (len > 32)
     {
         Serial.print("\nintToBinArray function, array size is larger than 32");
         Serial.println("\nBad Conversion");
-        return -1;
+        return -ERR_BAD_CONVERSION;
     }
     uint32_t mask = 1;
 
@@ -441,24 +390,23 @@ int intToBinArray(uint8_t * arr, uint32_t n, uint16_t len)
             arr[i] = 0;
         mask <<= 1;
     }
+
+    return OK;
 }
 
-
-/**
- * @brief Used for various tasks where an input character needs to be received
- * from the user via the serial port.
- * @param message Message for the user.
- * @return char input from user.
- */
-char getCharacter(const char * message)
+void notify_input_and_busy_wait_for_serial_input()
 {
-    char inChar[1] = {0};
-
     clear_serial_rx_buf(); // first, clean the input buffer
     Serial.print(message); // notify user to input a value
     Serial.flush();
-    while (Serial.available() == 0) {}  // wait for user input
+    while (Serial.available() == 0) {} // busy wait for user input
+}
 
+char getCharacter(const char* message)
+{
+    char inChar[1] = {0};
+
+    notify_input_and_busy_wait_for_serial_input();
     Serial.readBytesUntil('\n', inChar, 1);
     char chr = inChar[0];
 
@@ -470,18 +418,11 @@ char getCharacter(const char * message)
 }
 
 
-/**
- * @brief Get string from the user via the serial port.
- * @return String input from user.
- */
 String getString(const char * message)
 {
     String str;
-    clear_serial_rx_buf(); // first, clean the input buffer
-    Serial.print(message); // notify user to input a value
-    Serial.flush();
-    while (Serial.available() == 0) {} // wait for user input
 
+    notify_input_and_busy_wait_for_serial_input
     str = Serial.readStringUntil('\n');
 
 #if DEBUGSERIAL
@@ -492,18 +433,9 @@ String getString(const char * message)
     return str;
 }
 
-
-/**
- * @brief Used for various tasks where a number needs to be received
- * from the user via the serial port.
- */
-void fetchNumber(const char * message)
+void fetchNumber(const char* message)
 {
-    clear_serial_rx_buf(); // first, clean the input buffer
-    Serial.print(message); // notify user to input a value
-    Serial.flush();
-    while (Serial.available() == 0) {} // wait for user input
-
+    notify_input_and_busy_wait_for_serial_input();
     digits = Serial.readStringUntil('\n');
 
 #if DEBUGSERIAL
@@ -513,22 +445,9 @@ void fetchNumber(const char * message)
 #endif
 }
 
-
-/**
- * @brief Used for various tasks where a hexadecimal number needs to be received
- * from the user via the serial port.
- * @param num_bytes The amount of hexadecimal characters to receive.
- * @param message Message for the user.
- * @return uint32_t representation of the hexadecimal number from user.
- */
-uint32_t getInteger(int num_bytes, const char * message)
+uint32_t getInteger(int num_bytes, const char* message)
 {
     char myData[num_bytes];
-
-    clear_serial_rx_buf(); // first, clean the input buffer
-    Serial.print(message); // notify user to input a value
-    Serial.flush();
-    while (Serial.available() == 0) {} // wait for user input
 
     size_t m = Serial.readBytesUntil('\n', myData, num_bytes);
     myData[m] = '\0';  // insert null charcater
@@ -548,19 +467,13 @@ uint32_t getInteger(int num_bytes, const char * message)
     return z;
 }
 
-
-/**
- *
- * @brief Receive a number from the user, in different formats: 0x, 0b, or decimal.
- * With an option to return the fetched number as is in a uint32 format.
- * @param message A message for the user.
- * @param dest Destination array. Will contain user's input value.
- * @param size Size (in bytes) of the destination array. 
- * @return 
- */
-uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
+// TODO: work more on this function, do some checks
+uint32_t parseNumber(uint8_t* dest, uint16_t size, const char* message)
 {
     char prefix = '0';
+    
+    // set a default parsed value
+    *out = 0;
 
     // fetch the digits from the Serial interface
     fetchNumber(message);
@@ -570,69 +483,66 @@ uint32_t parseNumber(uint8_t * dest, uint16_t size, const char * message)
         prefix = digits[1];	
     // else, no prefix, just a decimal number with 1 digit
 
+    switch (prefix)
+    {
     // user sent hexadecimal format
-    if (prefix == 'x')
-    {
+    case 'x':
         // cut out the digits without the prefix
         digits = digits.substring(2);
 
-        // user wants the function to return the fetched number as is without storing in destination array
-        if (dest == NULL)
-        {
-            // Prepare the character array (the buffer)
-            char tmp[digits.length() + 1];  // with 1 extra char for '/0'
-            // convert String to char array
-            digits.toCharArray(tmp, digits.length() + 1);
-            // add null terminator
-            tmp[digits.length()] = '\0';
-            // convert to unsigned int
-            uint32_t z = strtoul(tmp, NULL, 16);
-            return z;
+        if (dest != NULL) {
+            hexStrToBinArray(dest, size, digits, digits.length());
         }
-        hexStrToBinArray(dest, size, digits, digits.length());
-    }
+
+        // Prepare the character array (the buffer)
+        char tmp[digits.length() + 1];  // with 1 extra char for '/0'
+        // convert String to char array
+        digits.toCharArray(tmp, digits.length() + 1);
+        // add null terminator
+        tmp[digits.length()] = '\0';
+        // convert to unsigned int
+        *out = strtoul(tmp, NULL, 16);
+        break;
+
     // user sent binary format
-    else if (prefix == 'b')
-    {
+    case: 'b'
         // cut out the digits without the prefix
         digits = digits.substring(2);
 
-        // convert binary to integer and return
-        if (dest == NULL){
-            uint32_t z = binStringToInt(digits);
-            return z;
+        // convert binary to integer
+        if (dest != NULL) {
+            binStrToBinArray(dest, size, digits, digits.length());
         }
-        binStrToBinArray(dest, size, digits, digits.length());
-    }
+
+        *out = binStringToInt(digits);
+        break;
+
     // user sent decimal format
-    else
-    {
+    default:
         if (isDigit(prefix) && digits.length() > 0)
         {
             // construct a whole decimal from the string
             char tmp[digits.length() + 1];
             digits.toCharArray(tmp, digits.length() + 1);
             tmp[digits.length()] = '\0';
-            uint32_t z = strtoul(tmp, NULL, 10);
+            *out = strtoul(tmp, NULL, 10);
 
-            if (dest == NULL){
-                return z;
+            if (dest != NULL) {
+                if (intToBinArray(dest, *out, size) != OK) {
+                    Serial.println("\nDidn't get number.");
+                    return -ERR_BAD_CONVERSION;
+                }
             }
-            intToBinArray(dest, z, size);
-        }
-
-        else{
+        } else {
             Serial.println("\nBad prefix. Didn't get number.");
+            return -ERR_BAD_PREFIX_OR_SUFFIX
         }
+        break;
     }
-    return 0;
+
+    return OK;
 }
 
-
-/**
-    @brief Return to TEST LOGIC RESET state of the TAP FSM.
-    Apply 5 TCK cycles accompanied with TMS logic state 1.
-*/
 void reset_tap()
 {
 #if PRINT_RESET_TAP
@@ -647,19 +557,9 @@ void reset_tap()
     current_state = TEST_LOGIC_RESET;
 }
 
-
-/**
-*	@brief Insert data of length dr_len to DR, and end the interaction
-*	in the state end_state which can be one of the following:
-*	TLR, RTI.
-*	@param dr_in Pointer to the input data array. (bytes array)
-*	@param dr_len Length of the register currently connected between tdi and tdo.
-*	@param end_state TAP state after dr inseration.
-*	@param dr_out Pointer to the output data array. (bytes array)
-*/
-void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_out)
+void insert_dr(uint8_t* dr_in, uint8_t dr_len, uint8_t end_state, uint8_t* dr_out)
 {
-    /* Make sure that current state is TLR*/
+    // make sure that current state is TLR
     uint16_t i = 0;
 
     advance_tap_state(RUN_TEST_IDLE);
@@ -694,17 +594,7 @@ void insert_dr(uint8_t * dr_in, uint8_t dr_len, uint8_t end_state, uint8_t * dr_
     }
 }
 
-
-/**
-*	@brief Insert data of length ir_len to IR, and end the interaction
-*	in the state end_state which can be one of the following:
-*	TLR, RTI, SelectDR.
-*	@param ir_in Pointer to the input data array. Bytes array, where each
-*	@param ir_len Length of the register currently connected between tdi and tdo.
-*	@param end_state TAP state after dr inseration.
-*	@param ir_out Pointer to the output data array. (bytes array)
-*/
-void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_out)
+void insert_ir(uint8_t* ir_in, uint8_t ir_len, uint8_t end_state, uint8_t* ir_out)
 {
     // Make sure that current state is TLR
     uint8_t i = 0;
@@ -721,12 +611,12 @@ void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_
         digitalWrite(TDI, ir_in[i]);
         digitalWrite(TCK, 0); HC;
         digitalWrite(TCK, 1); HC;
-        ir_out[i] = digitalRead(TDO);  // read the shifted out bits . LSB first
+        ir_out[i] = digitalRead(TDO);  // read the shifted out bits. LSB first
     }
 
     // read and write the last IR bit and continue to the end state
     digitalWrite(TDI, ir_in[i]);
-    advance_tap_state(EXIT1_IR);	
+    advance_tap_state(EXIT1_IR);
     ir_out[i] = digitalRead(TDO);
 
     advance_tap_state(UPDATE_IR);
@@ -742,37 +632,21 @@ void insert_ir(uint8_t * ir_in, uint8_t ir_len, uint8_t end_state, uint8_t * ir_
     }
 }
 
-
-/**
- * @brief Fill the register with zeros
- * @param reg Pointer to the register to flush.
- */
-void clear_reg(uint8_t * reg, uint16_t len){
+void clear_reg(uint8_t* reg, uint16_t len)
+{
     for (uint16_t i = 0; i < len; i++)
         reg[i] = 0;
 }
 
-
-/**
- * @brief Clean the IR and DR together
- */
-void flush_ir_dr(uint8_t * ir_reg, uint8_t * dr_reg, uint16_t ir_len, uint16_t dr_len){
+void flush_ir_dr(uint8_t* ir_reg, uint8_t* dr_reg, uint16_t ir_len, uint16_t dr_len)
+{
     clear_reg(ir_reg, ir_len);
     clear_reg(dr_reg, dr_len);
 }
 
-
-/**
-    @brief Find out the dr length of a specific instruction.
-    @param instruction Pointer to the bytes array that contains the instruction.
-    @param ir_len The length of the IR. (Needs to be know prior to function call).
-    @return Counter that represents the size of the DR. Or 0 if didn't find
-    a valid size. (DR may not be implemented or some other reason).
-*/
 uint16_t detect_dr_len(uint8_t * instruction, uint8_t ir_len)
 {	
-    /* Make sure that current state is TLR*/
-
+    // make sure that current state is TLR
     uint8_t tmp[ir_len];  // temporary array to strore the shifted out bits of IR
     uint16_t i = 0;
     uint16_t counter = 0;
@@ -813,18 +687,8 @@ uint16_t detect_dr_len(uint8_t * instruction, uint8_t ir_len)
     return 0;
 }
 
-
-/**
- * @brief Similarly to discovery command in urjtag, performs a brute force search
- * of each possible values of the IR register to get its corresponding DR leght in bits.
- * Test Logic Reset (TLR) state is being reached after each instruction.
- * @param first ir value to begin with.
- * @param last Usually 2 to the power of (ir_len) - 1.
- * @param max_dr_len Maximum data register allowed.
- * @param ir_in Pointer to ir_in register.
- * @param ir_out Pointer to ir_out register.
-*/
-void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_in, uint8_t * ir_out)
+// TODO: some work needed here
+void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t* ir_in, uint8_t* ir_out)
 {
     uint32_t instruction = 0;
     int i, counter = 0;
@@ -833,7 +697,8 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
     Serial.print("\n\nDiscovery of instructions from 0x"); Serial.print(first, HEX);
     Serial.print(" to 0x"); Serial.println(last, HEX);
 
-    for (instruction=first; instruction <= last; instruction++){
+    for (instruction=first; instruction <= last; instruction++)
+    {
         // reset tap
         reset_tap();
         counter = 0;
@@ -852,7 +717,7 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
 
         digitalWrite(TDI, 1);
 
-        for (i = 0; i < max_dr_len; i++){
+        for (i = 0; i < max_dr_len; i++) {
             advance_tap_state(SHIFT_DR);
         }
 
@@ -860,7 +725,7 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
         advance_tap_state(SHIFT_DR);
         digitalWrite(TDI, 1);
 
-        for (i = 0; i < max_dr_len; i++){
+        for (i = 0; i < max_dr_len; i++) {
             counter++;
             advance_tap_state(SHIFT_DR);
 
@@ -868,9 +733,8 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
                 break;
         }
 
-        if (counter == max_dr_len){
+        if (counter == max_dr_len)
             counter = -1; // tdo stuck at 1
-        }
 
         // TODO: why just not use detect_dr_len function ??
 
@@ -879,29 +743,26 @@ void discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t * ir_
         Serial.print(" ... "); Serial.print(counter, DEC);
         Serial.flush();
     }
+
     reset_tap();
     Serial.println("\n\n   Done");
 }
 
-
-/**
-*	@brief Advance the TAP machine 1 state ahead according to the current state 
-*	and next state of the IEEE 1149.1 standard.
-*	@param next_state The next state to advance to.
-*/
-void advance_tap_state(uint8_t next_state)
+int advance_tap_state(uint8_t next_state)
 {
+    int rc = OK;
+
     switch ( current_state )
     {
         case TEST_LOGIC_RESET:
-            if (next_state == RUN_TEST_IDLE){
+            if (next_state == RUN_TEST_IDLE) {
                 // go to run test idle
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = RUN_TEST_IDLE;
             }
-            else if (next_state == TEST_LOGIC_RESET){
+            else if (next_state == TEST_LOGIC_RESET) {
                 // stay in test logic reset
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -910,14 +771,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case RUN_TEST_IDLE:
-            if (next_state == SELECT_DR){
+            if (next_state == SELECT_DR) {
                 // go to select dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = SELECT_DR;
             }
-            else if (next_state == RUN_TEST_IDLE){ 
+            else if (next_state == RUN_TEST_IDLE) {
                 // stay in run test idle
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
@@ -926,14 +787,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case SELECT_DR:
-            if (next_state == CAPTURE_DR){
+            if (next_state == CAPTURE_DR) {
                 // go to capture dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = CAPTURE_DR;
             }
-            else if (next_state == SELECT_IR){ 
+            else if (next_state == SELECT_IR) { 
                 // go to select ir
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -943,14 +804,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case CAPTURE_DR:
-            if (next_state == SHIFT_DR){
+            if (next_state == SHIFT_DR) {
                 // go to shift dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = SHIFT_DR;
             }
-            else if (next_state == EXIT1_DR){ 
+            else if (next_state == EXIT1_DR) { 
                 // go to exit1 dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -960,13 +821,13 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case SHIFT_DR:
-            if (next_state == SHIFT_DR){
+            if (next_state == SHIFT_DR) {
                 // stay in shift dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
             }
-            else if (next_state == EXIT1_DR){ 
+            else if (next_state == EXIT1_DR) {
                 // go to exit1 dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -976,14 +837,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case EXIT1_DR:
-            if (next_state == PAUSE_DR){
+            if (next_state == PAUSE_DR) {
                 // go to pause dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = PAUSE_DR;
             }
-            else if (next_state == UPDATE_DR){ 
+            else if (next_state == UPDATE_DR) {
                 // go to update dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -993,13 +854,13 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case PAUSE_DR:
-            if (next_state == PAUSE_DR){
+            if (next_state == PAUSE_DR) {
                 // stay in pause dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
             }
-            else if (next_state == EXIT2_DR){ 
+            else if (next_state == EXIT2_DR) {
                 // go to exit2 dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1009,14 +870,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case EXIT2_DR:
-            if (next_state == SHIFT_DR){
+            if (next_state == SHIFT_DR) {
                 // go to shift dr
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = SHIFT_DR;
             }
-            else if (next_state == UPDATE_DR){ 
+            else if (next_state == UPDATE_DR) {
                 // go to update dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1026,14 +887,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case UPDATE_DR:
-            if (next_state == RUN_TEST_IDLE){
+            if (next_state == RUN_TEST_IDLE) {
                 // go to run test idle
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = RUN_TEST_IDLE;
             }
-            else if (next_state == SELECT_DR){ 
+            else if (next_state == SELECT_DR) {
                 // go to select dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1043,14 +904,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case SELECT_IR:
-            if (next_state == CAPTURE_IR){
+            if (next_state == CAPTURE_IR) {
                 // go to capture ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = CAPTURE_IR;
             }
-            else if (next_state == TEST_LOGIC_RESET){ 
+            else if (next_state == TEST_LOGIC_RESET) {
                 // go to test logic reset
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1060,14 +921,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case CAPTURE_IR:
-            if (next_state == SHIFT_IR){
+            if (next_state == SHIFT_IR) {
                 // go to shift ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = SHIFT_IR;
             }
-            else if (next_state == EXIT1_IR){ 
+            else if (next_state == EXIT1_IR) {
                 // go to exit1 ir
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1077,13 +938,13 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case SHIFT_IR:
-            if (next_state == SHIFT_IR){
+            if (next_state == SHIFT_IR) {
                 // stay in shift ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
             }
-            else if (next_state == EXIT1_IR){ 
+            else if (next_state == EXIT1_IR) {
                 // go to exit1 ir
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1093,14 +954,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case EXIT1_IR:
-            if (next_state == PAUSE_IR){
+            if (next_state == PAUSE_IR) {
                 // go to pause ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = PAUSE_IR;
             }
-            else if (next_state == UPDATE_IR){ 
+            else if (next_state == UPDATE_IR) {
                 // go to update ir
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1110,13 +971,13 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case PAUSE_IR:
-            if (next_state == PAUSE_IR){
+            if (next_state == PAUSE_IR) {
                 // stay in pause ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
             }
-            else if (next_state == EXIT2_IR){ 
+            else if (next_state == EXIT2_IR) {
                 // go to exit2 dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1126,14 +987,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case EXIT2_IR:
-            if (next_state == SHIFT_IR){
+            if (next_state == SHIFT_IR) {
                 // go to shift ir
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = SHIFT_IR;
             }
-            else if (next_state == UPDATE_IR){ 
+            else if (next_state == UPDATE_IR) {
                 // go to update ir
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1143,14 +1004,14 @@ void advance_tap_state(uint8_t next_state)
             break;
 
         case UPDATE_IR:
-            if (next_state == RUN_TEST_IDLE){
+            if (next_state == RUN_TEST_IDLE) {
                 // go to run test idle
                 digitalWrite(TMS, 0);
                 digitalWrite(TCK, 0); HC;
                 digitalWrite(TCK, 1); HC;
                 current_state = RUN_TEST_IDLE;
             }
-            else if (next_state == SELECT_DR){ 
+            else if (next_state == SELECT_DR) {
                 // go to select dr
                 digitalWrite(TMS, 1);
                 digitalWrite(TCK, 0); HC;
@@ -1161,23 +1022,22 @@ void advance_tap_state(uint8_t next_state)
 
         default:
             Serial.println("Error: incorrent TAP state !");
+            rc = -ERR_BAD_TAP_STATE;
             break;
     }
 #if DEBUGTAP
     Serial.print("\ntap state: ");
     Serial.print(current_state, HEX);
 #endif
+    return rc;
 }
 
-
-/**
- * @brief Waits for the incoming of a special character to Serial.
- * @return The input char.
-*/
 char serialEvent(char character)
 {
   char inChar;
-  while (Serial.available() == 0) {
+
+  while (Serial.available() == 0)
+  {
     // get the new byte:
     inChar = (char)Serial.read();
     // if the incoming character equals to the argument, 
@@ -1187,57 +1047,41 @@ char serialEvent(char character)
       break;
     }
   }
+
   Serial.flush();
   return inChar;
 }
 
-
-/**
- * @brief Prints the given array from last element to first.
- * @param arr Pointer to array.
- * @param len Number of cells to print from that array.
-*/
-void printArray(uint8_t * arr, uint16_t len){
-    for (int16_t i = len - 1; i >= 0; i--){
-        Serial.print(arr[i], DEC);
-    }
-    Serial.flush();
-}
-
-
-/**
- * @brief Sends the bytes of an array/buffer via the serial port.
- * @param buf Pointer to the buffer of data to be sent.
- * @param chunk_size Number of bytes to send to host.
- */
-void sendDataToHost(uint8_t * buf, uint16_t chunk_size)
+void printArray(uint8_t* arr, uint16_t len)
 {
-    for (int i = 0; i < chunk_size; ++i){
-        Serial.write(buf[i]);
-    }
+    for (int16_t i = len - 1; i >= 0; i--)
+        Serial.print(arr[i], DEC);
+
     Serial.flush();
 }
 
+void sendDataToHost(uint8_t* buf, uint16_t chunk_size)
+{
+    for (int i = 0; i < chunk_size; ++i)
+        Serial.write(buf[i]);
+
+    Serial.flush();
+}
 
 void print_welcome()
 {
     Serial.println();
-    Serial.write(art0, sizeof(art1)); Serial.flush();
-    Serial.write(art1, sizeof(art2)); Serial.flush();
-    Serial.write(art2, sizeof(art3)); Serial.flush();
-    Serial.write(art3, sizeof(art4)); Serial.flush();
-    Serial.write(art4, sizeof(art5)); Serial.flush();
-    Serial.write(art5, sizeof(art6)); Serial.flush();
-    Serial.write(art6, sizeof(art7)); Serial.flush();
-    Serial.write(art7, sizeof(art8)); Serial.flush();
-    Serial.write(art8, sizeof(art9)); Serial.flush();
+    Serial.write(art0, sizeof(art0)); Serial.flush();
+    Serial.write(art1, sizeof(art1)); Serial.flush();
+    Serial.write(art2, sizeof(art2)); Serial.flush();
+    Serial.write(art3, sizeof(art3)); Serial.flush();
+    Serial.write(art4, sizeof(art4)); Serial.flush();
+    Serial.write(art5, sizeof(art5)); Serial.flush();
+    Serial.write(art6, sizeof(art6)); Serial.flush();
+    Serial.write(art7, sizeof(art7)); Serial.flush();
+    Serial.write(art8, sizeof(art8)); Serial.flush();
 }
 
-/**
- * @brief Display all available commands.
- * Also, you can add you custom commands for a specific target.
- * For example the MAX10 FPGA commands are included.
- */
 void print_main_menu()
 {
     Serial.flush();	
@@ -1255,28 +1099,26 @@ void print_main_menu()
     Serial.flush();
 }
 
-
 void setup()
 {
-    /* Initialize mode for standard IEEE 1149.1 JTAG pins */
+    // initialize mode for standard IEEE 1149.1 JTAG pins
     pinMode(TCK, OUTPUT);
     pinMode(TMS, OUTPUT);
     pinMode(TDI, OUTPUT);
     pinMode(TDO, INPUT_PULLUP);
     pinMode(TRST, OUTPUT);
 
-    /* Initial pins state */
+    // initialize pins state
     digitalWrite(TCK, 0);
     digitalWrite(TMS, 1);
     digitalWrite(TDI, 1);
     digitalWrite(TRST, 1);
 
-    /* Initialize serial communication */
+    // initialize serial communication
     Serial.begin(115200);
     while (!Serial) { }
     Serial.setTimeout(500); // set timeout for various serial R/W funcs
 }
-
 
 void loop()
 {
@@ -1289,7 +1131,7 @@ void loop()
 
     // to begin session
     String start = getString("Insert 'start' > ");
-    if (start != "start"){
+    if (start != "start") {
         Serial.println("Invalid, reset the Arduino and try again");
         while(1);
     }
@@ -1411,6 +1253,6 @@ void loop()
 
     reset_tap();
     Serial.end();
-    while(1);
+    while(1); // loop in place
 }
 
