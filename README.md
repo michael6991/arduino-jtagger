@@ -11,13 +11,15 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 ## Notice
 * Cannot be used on Arduino-Uno because it has not enough SRAM for the program to run.
 * Use a different platform with more than 2KBytes of SRAM. (Use: Mega, Due ...)
+* Use logic shifter
 
 # Future Work and Features
 * JTAG / IEEE-1149.1 pinout detection --> Jtagulator style (or JTAGEnum)
 * ARM SWD pinout detection            --> Jtagulator style
 * UART pinout detection               --> Jtagulator style
-* Find a way to detect multiple devices in chain
+* Find a way to detect multiple devices in chain and work seperately on each one
 * Option to insert ir,dr to a specific device in chain
 * Set verbosity options
 * Wrap print functions ?
 * Move function descriptions to header file
+* Utilize TRST with JTAGScan

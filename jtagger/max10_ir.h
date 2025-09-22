@@ -49,11 +49,13 @@
 // #define NEW_3
 
 /*
+
 Un-documented found by discovery: (ir, dr len)
-0x90 4 
-0x206 32 
-0x207 32 
-0x303 16 
+IR       DR
+0x90  => 4 
+0x206 => 32 
+0x207 => 32 
+0x303 => 16 
 
 */
 

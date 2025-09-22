@@ -6,30 +6,33 @@
 /**
  * Error return code definitions
  */
-#define OK                       (0)
-#define ERR_GENERAL              (1)
-#define ERR_BAD_CONVERSION       (2)
-#define ERR_OUT_OF_BOUNDS        (3)
-#define ERR_BAD_IDCODE           (4)
-#define ERR_BAD_PREFIX_OR_SUFFIX (5)
-#define ERR_BAD_TAP_STATE        (6)
+#define OK                       0
+#define ERR_GENERAL              1
+#define ERR_BAD_CONVERSION       2
+#define ERR_OUT_OF_BOUNDS        3
+#define ERR_BAD_IDCODE           4
+#define ERR_BAD_PREFIX_OR_SUFFIX 5
+#define ERR_BAD_TAP_STATE        6
+#define ERR_UNVALID_IR_OR_DR_LEN 7
+#define ERR_TDO_STUCK_AT_0       8
+#define ERR_TDO_STUCK_AT_1       9
 
 /**  
 * If you don't wish to see debug info such as TAP state transitions put 0.
 * Otherwise assign 1.
 */
-#define DEBUGTAP (0)
+#define DEBUGTAP 0
 
 /** 
 * If you don't wish to see debug info regarding user input via serial port put 0.
 * Otherwise assign 1.
 */
-#define DEBUGSERIAL (1)
+#define DEBUGSERIAL 1
 
 /**
  * If 1 then print each time TAP is reset
  */
-#define PRINT_RESET_TAP (0)
+#define PRINT_RESET_TAP 0
 
 
 // Define JTAG pins as you wish
@@ -39,20 +42,18 @@
 #define TDO 10
 #define TRST 11
 
-
-#define MAX_DR_LEN 32
-
+#define MAX_DR_LEN 512
 #ifndef MAX_DR_LEN
 #define MAX_DR_LEN 1024 // usually the BSR and might be larger than that
 #endif
 
-#define MANY_ONES (100)
+#define MANY_ONES 100
 
 /*	Choose a half-clock cycle delay	*/
 // half clock cycle
 // #define HC delay(1);
 // or
-#define DELAY_US (100) // delay in microseonds for a half-clock cycle (HC) to drive TCK.
+#define DELAY_US 100 // delay in microseonds for a half-clock cycle (HC) to drive TCK.
 #define HC delayMicroseconds(DELAY_US);
 
 // A more precise way to delay a half clock cycle:
@@ -79,9 +80,10 @@ typedef enum TapState
 
 /**
  * @brief Detects the the existence of a chain and checks the ir length.
- * @return An integer that represents the length of the instructions.
+ * @param out An integer that represents the length of the instructions.
+ * Most certainly less than 255 bits.
  */
-uint8_t detect_chain();
+int detect_chain(uint8_t* out);
 
 /**
  * @brief Convert char into a hexadecimal number
@@ -95,7 +97,7 @@ int chr2hex(char ch);
  * Prior to loop, the function clears the rx serial buffer
  * and notifys the user that we are ready for input.
  */
-void notify_input_and_busy_wait_for_serial_input();
+void notify_input_and_busy_wait_for_serial_input(const char* message);
 
 /**
  * @brief Used for various tasks where an input character needs to be received
@@ -135,7 +137,7 @@ uint32_t getInteger(int num_bytes, const char* message);
  * @param size Size (in bytes) of the destination array.
  * @param out The constructed number.
  */
-uint32_t parseNumber(uint8_t* dest, uint16_t size, const char* message, uint32_t* out);
+int parseNumber(uint8_t* dest, uint16_t size, const char* message, uint32_t* out);
 
 /**
  * @brief Convert the content of a String object into an integer number,
@@ -146,7 +148,7 @@ uint32_t parseNumber(uint8_t* dest, uint16_t size, const char* message, uint32_t
  * @param str Pointer to the array of bits.
  * @param out An unsigned integer that represents the the value of the array bits.
  */
-int binStringToInt(String str, uint32_t* out)
+int binStringToInt(String str, uint32_t* out);
 
 /**
  * @brief Convert array of bytes into an integer number, where every byte
@@ -157,7 +159,7 @@ int binStringToInt(String str, uint32_t* out)
  * @param len Integer that represents the length of the binary array.
  * @param out Pointer to result integer that represents the the value of the bits array.
  */
-int binArrayToInt(uint8_t* arr, int len, uin32_t* out);
+int binArrayToInt(uint8_t* arr, int len, uint32_t* out);
 
 /**
  * @brief Convert a binary string into a bytes array arr that will represent
@@ -248,12 +250,14 @@ void flush_ir_dr(uint8_t* ir_reg, uint8_t* dr_reg, uint16_t ir_len, uint16_t dr_
 
 /**
  * @brief Find out the dr length of a specific instruction.
+ * Make sure that current state is TLR prior this calling this function.
  * @param instruction Pointer to the bytes array that contains the instruction.
  * @param ir_len The length of the IR. (Needs to be know prior to function call).
+ * @param process_ticks Number of TCK ticks to wait for the inserted instruction to "process in".
  * @return Counter that represents the size of the DR. Or 0 if didn't find
  * a valid size. (DR may not be implemented or some other reason).
  */
-uint16_t detect_dr_len(uint8_t* instruction, uint8_t ir_len);
+uint32_t detect_dr_len(uint8_t* instruction, uint8_t ir_len, uint32_t process_ticks);
 
 /**
  * @brief Similarly to discovery command in urjtag, performs a brute force search
@@ -265,7 +269,7 @@ uint16_t detect_dr_len(uint8_t* instruction, uint8_t ir_len);
  * @param ir_in Pointer to ir_in register.
  * @param ir_out Pointer to ir_out register.
 */
-void discovery(uint16_t maxDRLen, uint32_t last, uint32_t first, uint8_t* ir_in, uint8_t* ir_out);
+int discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t* ir_in, uint8_t* ir_out);
 
 /**
 *	@brief Advance the TAP machine 1 state ahead according to the current state 
@@ -285,7 +289,7 @@ char serialEvent(char character);
  * @param arr Pointer to array.
  * @param len Number of cells to print from that array.
 */
-void printArray(uint8_t* arr, uint16_t len);
+void printArray(uint8_t* arr, uint32_t len);
 
 /**
  * @brief Sends the bytes of an array/buffer via the serial port.
@@ -302,6 +306,9 @@ void sendDataToHost(uint8_t* buf, uint16_t chunk_size);
  */
 void clear_serial_rx_buf();
 
+/**
+ * @brief Prints ASCII art
+ */
 void print_welcome();
 
 /**
