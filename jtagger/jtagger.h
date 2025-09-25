@@ -47,6 +47,10 @@
 #define MAX_DR_LEN 1024 // usually the BSR and might be larger than that
 #endif
 
+// The total number of exisitng TAPs/Devices in the system that
+// can be registered.
+#define MAX_ALLOWED_TAPS 16
+
 #define MANY_ONES 100
 
 /*	Choose a half-clock cycle delay	*/
@@ -75,8 +79,17 @@ typedef enum TapState
     TEST_LOGIC_RESET, RUN_TEST_IDLE,
     SELECT_DR, CAPTURE_DR, SHIFT_DR, EXIT1_DR, PAUSE_DR, EXIT2_DR, UPDATE_DR,
     SELECT_IR, CAPTURE_IR, SHIFT_IR, EXIT1_IR, PAUSE_IR, EXIT2_IR, UPDATE_IR
-}tap_state;
+} tap_state;
 
+typedef struct
+{
+    uint32_t num;
+    uint32_t idcode;
+    uint32_t ir_len;
+    char name[32];
+    bool is_jtag_swd;
+
+} tap_t;
 
 /**
  * @brief Detects the the existence of a chain and checks the ir length.
@@ -270,6 +283,33 @@ uint32_t detect_dr_len(uint8_t* instruction, uint8_t ir_len, uint32_t process_ti
  * @param ir_out Pointer to ir_out register.
 */
 int discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t* ir_in, uint8_t* ir_out);
+
+/**
+ * Initialize the TAPs array of tap_t structs.
+ */
+void taps_init(tap_t* taps);
+
+/**
+ * Example of a system/board where 2 TAPs exist in a single SOC:
+ * 
+ * The STM32F4xx MCUs integrate two serially connected JTAG TAPs, the boundary scan
+ * TAP (IR is 5-bit wide) and the Cortex®-M4 with FPU TAP (IR is 4-bit wide).
+ * To access the TAP of the Cortex®-M4 with FPU for debug purposes:
+ * 1. First, it is necessary to shift the BYPASS instruction of the boundary scan TAP.
+ * 2. Then, for each IR shift, the scan chain contains 9 bits (=5+4) and the unused TAP
+ * instruction must be shifted in using the BYPASS instruction.
+ * 3. For each data shift, the unused TAP, which is in BYPASS mode, adds 1 extra data bit in
+ * the data scan chain.
+ * 
+ *           ____________       ____________
+ * JTDI --> |tdi      tdo|---->|tdi      tdo|--> JTDO
+ *          |            |     |            |
+ *          |boundry scan|     |cortex-m4   |
+ *          | tap  5-bit |     | tap  4-bit |
+ *          |____________|     |____________|
+ * 
+ */
+tap_t* tap_selector(tap_t* taps, int which);
 
 /**
 *	@brief Advance the TAP machine 1 state ahead according to the current state 

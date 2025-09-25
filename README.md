@@ -15,7 +15,7 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 
 # Future Work and Features
 * JTAG / IEEE-1149.1 pinout detection --> Jtagulator style (or JTAGEnum)
-* ARM SWD pinout detection            --> Jtagulator style
+* ARM SWD pinout detection            --> Jtagulator style (note 38.3.1 in dm00031020 doc)
 * UART pinout detection               --> Jtagulator style
 * Find a way to detect multiple devices in chain and work seperately on each one
 * Option to insert ir,dr to a specific device in chain
@@ -23,3 +23,4 @@ Controlled by a python3 host via the Serial0 UART interface of the Arduino.
 * Wrap print functions ?
 * Move function descriptions to header file
 * Utilize TRST with JTAGScan
+* Utilize RTCK line for TI devices ?

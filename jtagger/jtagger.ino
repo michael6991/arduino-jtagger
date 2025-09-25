@@ -16,12 +16,12 @@
 
 // Global Variables
 uint32_t idcode = 0;
-uint8_t dr_out[MAX_DR_LEN] = {0};
+uint8_t dr_out[MAX_DR_LEN] = {0};  // TODO put these variables inside tap_t
 uint8_t dr_in[MAX_DR_LEN] = {0};
 uint8_t ir_len = 1;
 String digits = "";
 tap_state current_state;
-
+tap_t taps[MAX_ALLOWED_TAPS];
 
 int detect_chain(uint8_t* out)
 {
@@ -571,7 +571,7 @@ void insert_dr(uint8_t* dr_in, uint8_t dr_len, uint8_t end_state, uint8_t* dr_ou
     advance_tap_state(CAPTURE_DR);
     advance_tap_state(SHIFT_DR);
 
-    // shift data bits into the DR. make sure that first bit is LSB
+    // shift data bits into DR. make sure that first bit is LSB
     for (i = 0; i < dr_len - 1; i++)
     {
         digitalWrite(TDI, dr_in[i]);
@@ -700,7 +700,6 @@ uint32_t detect_dr_len(uint8_t* instruction, uint8_t ir_len, uint32_t process_ti
     return 0;
 }
 
-// TODO: some work needed here
 int discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t* ir_in, uint8_t* ir_out)
 {
     uint32_t instruction, len = 0;
@@ -738,6 +737,23 @@ int discovery(uint32_t first, uint32_t last, uint16_t max_dr_len, uint8_t* ir_in
     reset_tap();
     Serial.println("\n\n   Done");
     return rc;
+}
+
+void taps_init(tap_t* taps)
+{
+    for (size_t i = 0; i < MAX_ALLOWED_TAPS; i++)
+    {
+        taps[i].num = i;
+        taps[i].idcode = 0;
+        taps[i].ir_len = 0;
+        taps[i].name = {0};
+        taps[i].is_jtag_swd = 0; // jtag=0, swd=1
+    }
+}
+
+tap_t* tap_selector(tap_t* taps, int which)
+{
+
 }
 
 int advance_tap_state(uint8_t next_state)
@@ -1106,6 +1122,9 @@ void setup()
     digitalWrite(TMS, 1);
     digitalWrite(TDI, 1);
     digitalWrite(TRST, 1);
+
+    // initialize possible TAPs in chain
+    taps_init();
 
     // initialize serial communication
     Serial.begin(115200);
